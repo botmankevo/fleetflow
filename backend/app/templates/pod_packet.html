@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #1f2937; }
+      .row { display: flex; justify-content: space-between; margin-bottom: 16px; }
+      .block { width: 48%; }
+      .header { font-size: 16px; font-weight: bold; }
+      .label { font-weight: bold; margin-top: 6px; }
+      .signature { font-family: "Brush Script MT", cursive; font-size: 20px; }
+      .section-title { margin-top: 14px; font-weight: bold; }
+      img.thumb { width: 140px; height: auto; border: 1px solid #e5e7eb; }
+      a { color: #2563eb; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <div class="block">
+        <div class="header">{{ company.name }}</div>
+        <div>{{ company.address }}</div>
+        <div>{{ company.mc }} | {{ company.dot }}</div>
+        <div>{{ company.dispatch_email }}</div>
+        <div>{{ company.phone }}</div>
+      </div>
+      <div class="block">
+        <div class="header">Load Summary</div>
+        <div>Load ID: {{ load_summary.load_id }}</div>
+        <div>Commodity: {{ load_summary.commodity }}</div>
+        <div>Status: {{ load_summary.status }}</div>
+        <div>Delivery Date: {{ load_summary.delivery_date }}</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="block">
+        <div class="header">Broker</div>
+        <div>{{ broker_info }}</div>
+      </div>
+      <div class="block">
+        <div class="header">Locations</div>
+        <div class="label">Pickup</div>
+        <div>{{ locations.pickup.name }}</div>
+        <div>{{ locations.pickup.address }}</div>
+        <div class="label">Delivery</div>
+        <div>{{ locations.delivery.name }}</div>
+        <div>{{ locations.delivery.address }}</div>
+      </div>
+    </div>
+
+    <div class="section-title">Receiver</div>
+    <div>Name: {{ receiver.name }}</div>
+    <div>Signature: <span class="signature">{{ receiver.signature }}</span></div>
+
+    <div class="section-title">Notes</div>
+    <div>{{ notes }}</div>
+
+    <div class="section-title">Signed POD/BOL</div>
+    {% if signed_bol.thumbnail %}
+    <img class="thumb" src="{{ signed_bol.thumbnail }}" alt="Signed POD" />
+    {% endif %}
+    <div>
+      {% if signed_bol.view_link %}<a href="{{ signed_bol.view_link }}">View</a>{% endif %}
+      {% if signed_bol.view_all_link %} | <a href="{{ signed_bol.view_all_link }}">View All</a>{% endif %}
+    </div>
+
+    <div class="section-title">Delivery Photos</div>
+    {% if delivery_photos.thumbnail %}
+    <img class="thumb" src="{{ delivery_photos.thumbnail }}" alt="Delivery Photo" />
+    {% endif %}
+    <div>
+      {% if delivery_photos.view_all_link %}<a href="{{ delivery_photos.view_all_link }}">View All Photos</a>{% endif %}
+    </div>
+  </body>
+</html>
