@@ -1,3 +1,4 @@
+import mimetypes
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -16,6 +17,13 @@ from app.services.email_service import send_email
 router = APIRouter(prefix="/pods", tags=["pods"])
 
 
+def is_image_upload(filename: str, content_type: str | None) -> bool:
+    if content_type and content_type.startswith("image/"):
+        return True
+    guessed_type, _ = mimetypes.guess_type(filename)
+    return bool(guessed_type and guessed_type.startswith("image/"))
+
+
 @router.post("", response_model=PodSubmissionOut)
 async def submit_pod(
     load_id: int = Form(...),
@@ -31,29 +39,59 @@ async def submit_pod(
     load = db.query(Load).filter(Load.id == load_id).first()
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
+    if load.assigned_driver_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
-    bol_files = [(file.filename, await file.read()) for file in signed_bol]
-    photo_files = [(file.filename, await file.read()) for file in delivery_photos]
+    bol_files = []
+    bol_zip_files = []
+    for file in signed_bol:
+        content = await file.read()
+        bol_files.append(
+            {"filename": file.filename, "content": content, "content_type": file.content_type}
+        )
+        bol_zip_files.append((file.filename, content))
+
+    photo_files = []
+    photo_zip_files = []
+    for file in delivery_photos:
+        content = await file.read()
+        photo_files.append(
+            {"filename": file.filename, "content": content, "content_type": file.content_type}
+        )
+        photo_zip_files.append((file.filename, content))
 
     bol_paths = []
-    for filename, content in bol_files:
+    for bol_file in bol_files:
+        filename = bol_file["filename"]
+        content = bol_file["content"]
         path = f"/POD Packets/{load.load_id}/Signed BOL/{filename}"
         upload_file(path, content)
         bol_paths.append(path)
 
     photo_paths = []
-    for filename, content in photo_files:
+    for photo_file in photo_files:
+        filename = photo_file["filename"]
+        content = photo_file["content"]
         path = f"/POD Packets/{load.load_id}/Delivery Photos/{filename}"
         upload_file(path, content)
         photo_paths.append(path)
 
-    zip_bytes = build_zip(bol_files + photo_files)
+    zip_bytes = build_zip(bol_zip_files + photo_zip_files)
     zip_path = f"/POD Packets/{load.load_id}/Delivery Photos/{load.load_id}_photos.zip"
     upload_file(zip_path, zip_bytes)
     zip_shared_link = create_shared_link(zip_path, allow_public=send_receiver_copy)
 
-    bol_thumb = build_thumbnail_data_uri(bol_files[0][1]) if bol_files else None
-    photo_thumb = build_thumbnail_data_uri(photo_files[0][1]) if photo_files else None
+    bol_thumb = (
+        build_thumbnail_data_uri(bol_files[0]["content"])
+        if bol_files and is_image_upload(bol_files[0]["filename"], bol_files[0]["content_type"])
+        else None
+    )
+    photo_thumb = (
+        build_thumbnail_data_uri(photo_files[0]["content"])
+        if photo_files
+        and is_image_upload(photo_files[0]["filename"], photo_files[0]["content_type"])
+        else None
+    )
 
     pdf_payload = {
         "company": {
