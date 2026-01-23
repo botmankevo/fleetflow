@@ -19,7 +19,7 @@ After installation, make sure Docker is running before continuing.
 ## Run with Docker Compose
 
 ```bash
-cd /workspaces/fleetflow
+cd /path/to/fleetflow
 cp .env.example .env
 
 docker compose up
@@ -33,7 +33,7 @@ docker compose up
 ### Backend
 
 ```bash
-cd /workspaces/fleetflow
+cd /path/to/fleetflow
 cd backend
 python -m venv .venv
 source .venv/bin/activate
@@ -44,7 +44,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ### Frontend
 
 ```bash
-cd /workspaces/fleetflow
+cd /path/to/fleetflow
 cd frontend
 npm install
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
