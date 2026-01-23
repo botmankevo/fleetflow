@@ -166,6 +166,7 @@ Backend is now available at **http://localhost:8000**
 ### Frontend Setup
 
 ```bash
+cd /workspaces/fleetflow  # or your repo root
 cd frontend
 
 # Install dependencies
@@ -187,6 +188,11 @@ Frontend is now available at **http://localhost:3000**
   - Fix by removing the folder or correcting ownership, then reinstall:
     ```bash
     rm -rf frontend/node_modules
+    npm install
+    ```
+  - If you already ran `cd frontend`, omit the `frontend/` prefix:
+    ```bash
+    rm -rf node_modules
     npm install
     ```
 - **`next: not found` after `npm run dev`**
