@@ -180,6 +180,19 @@ npm run dev
 
 Frontend is now available at **http://localhost:3000**
 
+#### Frontend troubleshooting
+
+- **`npm install` fails with `EACCES: permission denied` on `node_modules`**
+  - This means the `frontend/node_modules` folder is owned by a different user (often from a root-owned install).
+  - Fix by removing the folder or correcting ownership, then reinstall:
+    ```bash
+    rm -rf frontend/node_modules
+    npm install
+    ```
+- **`next: not found` after `npm run dev`**
+  - This typically means dependencies did not install correctly.
+  - Re-run `npm install` after fixing permissions as above, then `npm run dev` again.
+
 ---
 
 ## Database & Migrations
