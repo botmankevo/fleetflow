@@ -7,6 +7,15 @@ Full-stack scaffold with FastAPI and Next.js.
 - Docker (recommended)
 - Or local installs of Python 3.11+ and Node.js 18+
 
+## Install Docker (new users)
+
+If you don't have Docker yet, install it first:
+
+- **macOS / Windows**: Install Docker Desktop from https://www.docker.com/products/docker-desktop/
+- **Linux**: Install Docker Engine from https://docs.docker.com/engine/install/
+
+After installation, make sure Docker is running before continuing.
+
 ## Run with Docker Compose
 
 ```bash
