@@ -46,7 +46,7 @@ class UserResponse(BaseModel):
 class TenantCreate(BaseModel):
     slug: str = Field(..., min_length=3, max_length=100)
     name: str
-    company_name: str
+    company_name: Optional[str] = None
     mc_number: Optional[str] = None
     dot_number: Optional[str] = None
     email: Optional[EmailStr] = None
