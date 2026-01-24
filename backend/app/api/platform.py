@@ -54,7 +54,7 @@ async def create_tenant(
     tenant = Tenant(
         slug=request.slug,
         name=request.name,
-        company_name=request.company_name,
+        company_name=request.company_name or request.name,
         mc_number=request.mc_number,
         dot_number=request.dot_number,
         email=request.email,
