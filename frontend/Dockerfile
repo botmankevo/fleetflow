@@ -3,11 +3,12 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Install dependencies
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm install
 
-# Copy application code
-COPY . .
+# Copy application code needed for build
+COPY frontend/app ./app
+COPY frontend/next-env.d.ts frontend/tsconfig.json ./
 
 # Build Next.js
 RUN npm run build
