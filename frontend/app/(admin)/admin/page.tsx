@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch, getToken } from "../../../lib/api";
 
 export default function AdminDashboard() {
   const [loads, setLoads] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [ready, setReady] = useState(false);
+  const router = useRouter();
   const [form, setForm] = useState({
     loadNumber: "",
     status: "Created",
@@ -17,7 +20,26 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    fetchLoads();
+    (async () => {
+      try {
+        const token = getToken();
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
+        const me = await apiFetch("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (me?.role !== "admin" && me?.role !== "dispatcher") {
+          router.replace("/driver");
+          return;
+        }
+        await fetchLoads();
+        setReady(true);
+      } catch (e: any) {
+        setError(e?.message ?? "Failed to load");
+      }
+    })();
   }, []);
 
   async function fetchLoads() {
@@ -61,6 +83,10 @@ export default function AdminDashboard() {
     } finally {
       setCreating(false);
     }
+  }
+
+  if (!ready) {
+    return <main className="p-6 text-slate">Checking access…</main>;
   }
 
   return (

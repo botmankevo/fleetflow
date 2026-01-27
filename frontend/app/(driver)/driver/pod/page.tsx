@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import UploadField from "../../../../components/UploadField";
 import SignaturePad from "../../../../components/SignaturePad";
 import { apiFetch, getToken } from "../../../../lib/api";
@@ -11,6 +12,30 @@ export default function PodPage() {
   const [signature, setSignature] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = getToken();
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
+        const me = await apiFetch("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (me?.role !== "driver" && me?.role !== "admin" && me?.role !== "dispatcher") {
+          router.replace("/login");
+          return;
+        }
+        setReady(true);
+      } catch {
+        router.replace("/login");
+      }
+    })();
+  }, []);
 
   async function submit() {
     setError(null);
@@ -39,6 +64,10 @@ export default function PodPage() {
     } catch (e: any) {
       setError(e?.message ?? "Upload failed");
     }
+  }
+
+  if (!ready) {
+    return <main className="p-6 text-slate">Checking access…</main>;
   }
 
   return (
