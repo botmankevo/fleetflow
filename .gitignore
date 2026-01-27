@@ -210,3 +210,6 @@ __marimo__/
 node_modules/
 .next/
 out/
+
+# Next.js local env
+.env.local

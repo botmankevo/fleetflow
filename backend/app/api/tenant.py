@@ -35,6 +35,26 @@ async def verify_tenant_admin(
     return (token, tenant_id)
 
 
+async def verify_tenant_staff(
+    token: dict = Depends(verify_token),
+    db: Session = Depends(get_db)
+) -> tuple:
+    """Verify user is tenant staff (dispatcher/admin/platform)."""
+    tenant_id = await verify_tenant_scope(token)
+
+    if token.get("role") not in [
+        Role.TENANT_ADMIN.value,
+        Role.PLATFORM_OWNER.value,
+        Role.DISPATCHER.value,
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant staff access required"
+        )
+
+    return (token, tenant_id)
+
+
 @router.get("/profile")
 async def get_tenant_profile(
     token: dict = Depends(verify_token),
@@ -183,3 +203,33 @@ async def update_driver(
     db.refresh(driver)
     
     return DriverResponse.model_validate(driver)
+
+
+@router.get("/audit-logs")
+async def list_audit_logs(
+    resource_type: str | None = None,
+    resource_id: int | None = None,
+    auth: tuple = Depends(verify_tenant_staff),
+    db: Session = Depends(get_db)
+):
+    """List audit logs for tenant, optionally filtered by resource."""
+    _, tenant_id = auth
+    query = db.query(AuditLog).filter(AuditLog.tenant_id == tenant_id)
+    if resource_type:
+        query = query.filter(AuditLog.resource_type == resource_type)
+    if resource_id:
+        query = query.filter(AuditLog.resource_id == resource_id)
+
+    logs = query.order_by(AuditLog.id.desc()).limit(200).all()
+    return [
+        {
+            "id": log.id,
+            "action": log.action,
+            "resource_type": log.resource_type,
+            "resource_id": log.resource_id,
+            "details": log.details,
+            "created_at": log.created_at,
+            "user_id": log.user_id,
+        }
+        for log in logs
+    ]

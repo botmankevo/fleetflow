@@ -13,7 +13,11 @@ class DropboxService:
     def __init__(self):
         if not settings.DROPBOX_ACCESS_TOKEN:
             raise ValueError("DROPBOX_ACCESS_TOKEN not configured")
-        self.dbx = dropbox.Dropbox(settings.DROPBOX_ACCESS_TOKEN)
+        self.dbx = dropbox.Dropbox(
+            oauth2_refresh_token=settings.DROPBOX_ACCESS_TOKEN,
+            app_key=settings.DROPBOX_APP_KEY,
+            app_secret=settings.DROPBOX_APP_SECRET,
+        )
     
     def upload_file(self, file_content: bytes, dropbox_path: str) -> str:
         """Upload file to Dropbox and return path."""

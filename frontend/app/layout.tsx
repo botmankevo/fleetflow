@@ -1,18 +1,14 @@
-import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata = {
   title: "FleetFlow",
-  description: "FleetFlow logistics dashboard",
+  description: "FleetFlow operations portal",
 };
 
-type RootLayoutProps = {
-  children: ReactNode;
-};
-
-export default function RootLayout({ children }: RootLayoutProps) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>{children}</body>
+    <html lang="en" className="dark">
+      <body className="min-h-screen">{children}</body>
     </html>
   );
 }

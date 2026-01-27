@@ -187,6 +187,9 @@ class LoadCreate(BaseModel):
     broker_name: Optional[str] = None
     broker_phone: Optional[str] = None
     broker_email: Optional[str] = None
+    carrier: Optional[str] = None
+    truck_number: Optional[str] = None
+    trailer_number: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -199,6 +202,9 @@ class LoadUpdate(BaseModel):
     broker_name: Optional[str] = None
     broker_phone: Optional[str] = None
     broker_email: Optional[str] = None
+    carrier: Optional[str] = None
+    truck_number: Optional[str] = None
+    trailer_number: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
 
@@ -216,6 +222,11 @@ class LoadResponse(BaseModel):
     delivery_location: str
     delivery_date: Optional[str]
     broker_name: Optional[str]
+    broker_phone: Optional[str]
+    broker_email: Optional[str]
+    carrier: Optional[str]
+    truck_number: Optional[str]
+    trailer_number: Optional[str]
     driver_id: Optional[int]
     created_at: datetime
 
