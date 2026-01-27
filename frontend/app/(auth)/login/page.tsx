@@ -23,8 +23,8 @@ export default function LoginPage() {
         body: JSON.stringify({ email, role, carrier_record_id: carrierId }),
       });
       setToken(res.access_token);
-      if (role === "driver") router.push("/driver/dashboard");
-      else router.push("/admin/dashboard");
+      if (role === "driver") router.push("/driver");
+      else router.push("/admin");
     } catch (e: any) {
       setError(e?.message ?? "Login failed");
     } finally {

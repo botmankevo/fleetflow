@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, getToken } from "../../../lib/api";
-import MapPreview from "../../../components/MapPreview";
+import { apiFetch, getToken } from "../../../../lib/api";
+import MapPreview from "../../../../components/MapPreview";
 
 export default function DriverLoads() {
   const [loads, setLoads] = useState<any[]>([]);
