@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, getToken } from "../../../../../lib/api";
 
@@ -11,15 +11,29 @@ export default function AdminLoadDetail() {
   const [load, setLoad] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
         const token = getToken();
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
+        const me = await apiFetch("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (me?.role !== "admin" && me?.role !== "dispatcher") {
+          router.replace("/driver");
+          return;
+        }
         const res = await apiFetch(`/loads/${loadId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          headers: { Authorization: `Bearer ${token}` },
         });
         setLoad(res);
+        setReady(true);
       } catch (e: any) {
         setError(e?.message ?? "Failed to load");
       }
@@ -47,7 +61,7 @@ export default function AdminLoadDetail() {
     }
   }
 
-  if (!load) {
+  if (!ready || !load) {
     return (
       <main className="p-6">
         <div className="text-slate">Loading...</div>

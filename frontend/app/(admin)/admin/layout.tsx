@@ -8,6 +8,7 @@ import { apiFetch, getToken } from "../../../lib/api";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -20,6 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const me = await apiFetch("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
+        setRole(me?.role ?? null);
         if (me?.role !== "admin" && me?.role !== "dispatcher") {
           router.replace("/driver");
           return;
@@ -42,7 +44,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <nav className="px-6 py-4 border-b border-white/10 flex gap-4 text-sm">
         <Link className="link" href="/admin">Admin</Link>
         <Link className="link" href="/admin/loads">Loads</Link>
-        <Link className="link" href="/driver">Driver View</Link>
+        {role === "admin" || role === "dispatcher" ? (
+          <Link className="link" href="/driver">Driver View</Link>
+        ) : null}
       </nav>
       {children}
     </div>

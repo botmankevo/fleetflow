@@ -8,6 +8,7 @@ import { apiFetch, getToken } from "../../../lib/api";
 export default function DriverLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -20,6 +21,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         const me = await apiFetch("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
+        setRole(me?.role ?? null);
         if (me?.role !== "driver" && me?.role !== "admin" && me?.role !== "dispatcher") {
           router.replace("/login");
           return;
@@ -43,7 +45,9 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         <Link className="link" href="/driver">Driver</Link>
         <Link className="link" href="/driver/loads">Loads</Link>
         <Link className="link" href="/driver/pod">POD</Link>
-        <Link className="link" href="/admin">Admin View</Link>
+        {role === "admin" || role === "dispatcher" ? (
+          <Link className="link" href="/admin">Admin View</Link>
+        ) : null}
       </nav>
       {children}
     </div>
