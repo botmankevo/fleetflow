@@ -45,5 +45,6 @@ npm run dev
 - Swagger: http://127.0.0.1:8000/docs
 
 ## Auth
+- `POST /auth/login` (email, password)
 - `POST /auth/dev-login` (email, role, carrier_code or carrier_record_id)
 - `GET /auth/me` resolves driver_record_id by Driver Email + Carrier link

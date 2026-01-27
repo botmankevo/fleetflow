@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     AIRTABLE_PAT: str = ""
     AIRTABLE_BASE_ID: str = ""
+    AIRTABLE_TABLE_USERS: str = "Users"
     AIRTABLE_TABLE_DRIVERS: str = "Drivers"
     AIRTABLE_TABLE_LOADS: str = "Loads"
     AIRTABLE_TABLE_CARRIERS: str = "Carriers"

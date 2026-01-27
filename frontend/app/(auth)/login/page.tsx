@@ -7,16 +7,12 @@ import { apiFetch, setToken } from "../../../lib/api";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("dispatcher");
-  const [carrierCode, setCarrierCode] = useState("");
-  const [rememberCode, setRememberCode] = useState(true);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const saved = localStorage.getItem("fleetflow_carrier_code");
-    if (saved) setCarrierCode(saved);
+    // No-op for now; keep effect hook in case we add auto-fill later.
   }, []);
 
   async function onSubmit(e: React.FormEvent) {
@@ -24,16 +20,16 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/auth/dev-login", {
+      const res = await apiFetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role, carrier_code: carrierCode }),
+        body: JSON.stringify({ email, password }),
       });
-      if (rememberCode && typeof window !== "undefined") {
-        localStorage.setItem("fleetflow_carrier_code", carrierCode);
-      }
       setToken(res.access_token);
-      if (role === "driver") router.push("/driver");
+      const me = await apiFetch("/auth/me", {
+        headers: { Authorization: `Bearer ${res.access_token}` },
+      });
+      if (me?.role === "driver") router.push("/driver");
       else router.push("/admin");
     } catch (e: any) {
       setError(e?.message ?? "Login failed");
@@ -47,20 +43,13 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="card w-full max-w-md space-y-4">
         <h1 className="text-xl text-gold">FleetFlow Login</h1>
         <input className="input w-full" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <select className="input w-full" value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="admin">Admin</option>
-          <option value="dispatcher">Dispatcher</option>
-          <option value="driver">Driver</option>
-        </select>
-        <input className="input w-full" placeholder="Carrier Code (e.g., COXTNL)" value={carrierCode} onChange={(e) => setCarrierCode(e.target.value)} />
-        <label className="flex items-center gap-2 text-sm text-slate">
-          <input
-            type="checkbox"
-            checked={rememberCode}
-            onChange={(e) => setRememberCode(e.target.checked)}
-          />
-          Remember carrier code on this device
-        </label>
+        <input
+          className="input w-full"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         {error && <div className="text-red-400 text-sm">{error}</div>}
         <button className="btn w-full" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}

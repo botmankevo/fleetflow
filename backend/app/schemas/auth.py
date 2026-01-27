@@ -9,6 +9,11 @@ class DevLoginRequest(BaseModel):
     carrier_code: str | None = None
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 class DevLoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

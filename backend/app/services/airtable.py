@@ -67,3 +67,11 @@ class AirtableClient:
         if not records:
             return None
         return records[0]["id"]
+
+    def find_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        field_email = "Email"
+        formula = f"{{{field_email}}}='{email}'"
+        records = self.list_records(settings.AIRTABLE_TABLE_USERS, formula=formula)
+        if not records:
+            return None
+        return records[0]
