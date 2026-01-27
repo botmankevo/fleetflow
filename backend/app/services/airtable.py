@@ -57,3 +57,13 @@ class AirtableClient:
         if not records:
             return None
         return records[0]["id"]
+
+    def find_carrier_record_id(self, carrier_code: str) -> Optional[str]:
+        # Prefer Internal ID; fallback to Name
+        internal_field = "Internal ID"
+        name_field = "Name"
+        formula = f"OR({{{internal_field}}}='{carrier_code}', {{{name_field}}}='{carrier_code}')"
+        records = self.list_records(settings.AIRTABLE_TABLE_CARRIERS, formula=formula)
+        if not records:
+            return None
+        return records[0]["id"]

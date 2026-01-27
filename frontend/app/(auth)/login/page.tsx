@@ -8,7 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("dispatcher");
-  const [carrierId, setCarrierId] = useState("");
+  const [carrierCode, setCarrierCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +20,7 @@ export default function LoginPage() {
       const res = await apiFetch("/auth/dev-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role, carrier_record_id: carrierId }),
+        body: JSON.stringify({ email, role, carrier_code: carrierCode }),
       });
       setToken(res.access_token);
       if (role === "driver") router.push("/driver");
@@ -42,7 +42,7 @@ export default function LoginPage() {
           <option value="dispatcher">Dispatcher</option>
           <option value="driver">Driver</option>
         </select>
-        <input className="input w-full" placeholder="Carrier Record ID (recXXXX)" value={carrierId} onChange={(e) => setCarrierId(e.target.value)} />
+        <input className="input w-full" placeholder="Carrier Code (e.g., COXTNL)" value={carrierCode} onChange={(e) => setCarrierCode(e.target.value)} />
         {error && <div className="text-red-400 text-sm">{error}</div>}
         <button className="btn w-full" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}

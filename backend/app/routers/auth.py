@@ -8,11 +8,22 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/dev-login", response_model=DevLoginResponse)
 def dev_login(payload: DevLoginRequest):
+    carrier_record_id = payload.carrier_record_id
+    if not carrier_record_id and payload.carrier_code:
+        try:
+            airtable = AirtableClient()
+            carrier_record_id = airtable.find_carrier_record_id(payload.carrier_code)
+        except Exception:
+            carrier_record_id = None
+
+    if not carrier_record_id:
+        raise HTTPException(status_code=400, detail="Invalid carrier code or record id")
+
     token = create_access_token(
         {
             "email": payload.email,
             "role": payload.role,
-            "carrier_record_id": payload.carrier_record_id,
+            "carrier_record_id": carrier_record_id,
         }
     )
     return {"access_token": token, "token_type": "bearer"}

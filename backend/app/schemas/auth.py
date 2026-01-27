@@ -5,7 +5,8 @@ from typing import Optional
 class DevLoginRequest(BaseModel):
     email: str
     role: str
-    carrier_record_id: str
+    carrier_record_id: str | None = None
+    carrier_code: str | None = None
 
 
 class DevLoginResponse(BaseModel):
