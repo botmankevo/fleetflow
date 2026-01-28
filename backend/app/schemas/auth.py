@@ -5,8 +5,9 @@ from typing import Optional
 class DevLoginRequest(BaseModel):
     email: str
     role: str
-    carrier_record_id: str | None = None
+    carrier_id: int | None = None
     carrier_code: str | None = None
+    carrier_name: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -22,5 +23,11 @@ class DevLoginResponse(BaseModel):
 class MeResponse(BaseModel):
     email: str
     role: str
-    carrier_record_id: str
-    driver_record_id: Optional[str] = None
+    carrier_id: int
+    driver_id: Optional[int] = None
+    user_id: int
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

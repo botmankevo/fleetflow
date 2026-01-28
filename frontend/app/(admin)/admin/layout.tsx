@@ -44,6 +44,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <nav className="px-6 py-4 border-b border-white/10 flex gap-4 text-sm">
         <Link className="link" href="/admin">Admin</Link>
         <Link className="link" href="/admin/loads">Loads</Link>
+        <Link className="link" href="/admin/drivers">Drivers</Link>
+        <Link className="link" href="/admin/expenses">Expenses</Link>
+        <Link className="link" href="/admin/maintenance">Maintenance</Link>
+        <Link className="link" href="/admin/pod-history">POD History</Link>
+        <Link className="link" href="/admin/users">Users</Link>
+        <Link className="link" href="/admin/account">Account</Link>
         {role === "admin" || role === "dispatcher" ? (
           <Link className="link" href="/driver">Driver View</Link>
         ) : null}

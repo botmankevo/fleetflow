@@ -22,3 +22,9 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   }
   return res.text();
 }
+
+export function getErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error) return err.message || fallback;
+  if (typeof err === "string") return err || fallback;
+  return fallback;
+}

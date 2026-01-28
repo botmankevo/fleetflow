@@ -1,4 +1,21 @@
 services:
+  db:
+    image: postgres:15
+    container_name: fleetflow-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fleetflow}
+      POSTGRES_USER: ${POSTGRES_USER:-fleetflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fleetflow}
+    ports:
+      - "5432:5432"
+    volumes:
+      - fleetflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetflow} -d ${POSTGRES_DB:-fleetflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -8,6 +25,8 @@ services:
       FLEETFLOW_ENV: ${FLEETFLOW_ENV:-dev}
       JWT_SECRET: ${JWT_SECRET:-change-me}
       TOKEN_EXP_MINUTES: ${TOKEN_EXP_MINUTES:-1440}
+      DEBUG: ${DEBUG:-false}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://fleetflow:fleetflow@db:5432/fleetflow}
       AIRTABLE_PAT: ${AIRTABLE_PAT:-}
       AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
       AIRTABLE_TABLE_DRIVERS: ${AIRTABLE_TABLE_DRIVERS:-Drivers}
@@ -18,10 +37,16 @@ services:
       DROPBOX_ACCESS_TOKEN: ${DROPBOX_ACCESS_TOKEN:-}
       DROPBOX_ROOT_FOLDER: ${DROPBOX_ROOT_FOLDER:-/FleetFlow}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      ENABLE_AIRTABLE: ${ENABLE_AIRTABLE:-false}
+      ENABLE_DROPBOX: ${ENABLE_DROPBOX:-true}
+      ENABLE_GOOGLE_MAPS: ${ENABLE_GOOGLE_MAPS:-true}
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
@@ -39,3 +64,6 @@ services:
       - /app/node_modules
       - /app/.next
     command: npm run dev
+
+volumes:
+  fleetflow_pgdata:

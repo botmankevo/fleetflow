@@ -3,10 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch, getToken } from "../../../lib/api";
+import { apiFetch, getErrorMessage, getToken } from "../../../lib/api";
+
+type Load = {
+  id: number;
+  load_number?: string | null;
+  pickup_address: string;
+  delivery_address: string;
+  driver_id?: number | null;
+};
+
+type Driver = {
+  id: number;
+  name: string;
+  email?: string | null;
+};
 
 export default function AdminDashboard() {
-  const [loads, setLoads] = useState<any[]>([]);
+  const [loads, setLoads] = useState<Load[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [ready, setReady] = useState(false);
@@ -17,6 +32,7 @@ export default function AdminDashboard() {
     pickup: "",
     delivery: "",
     notes: "",
+    driverId: "",
   });
 
   useEffect(() => {
@@ -34,13 +50,26 @@ export default function AdminDashboard() {
           router.replace("/driver");
           return;
         }
+        await fetchDrivers();
         await fetchLoads();
         setReady(true);
-      } catch (e: any) {
-        setError(e?.message ?? "Failed to load");
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load"));
       }
     })();
-  }, []);
+  }, [router]);
+
+  async function fetchDrivers() {
+    try {
+      const token = getToken();
+      const res = await apiFetch("/drivers", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      setDrivers(res);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load drivers"));
+    }
+  }
 
   async function fetchLoads() {
     try {
@@ -49,8 +78,8 @@ export default function AdminDashboard() {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       setLoads(res);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load"));
     }
   }
 
@@ -67,19 +96,18 @@ export default function AdminDashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fields: {
-            "Load #": form.loadNumber,
-            Status: form.status,
-            "Pickup Address": form.pickup,
-            "Delivery Address": form.delivery,
-            Notes: form.notes,
-          },
+          load_number: form.loadNumber,
+          status: form.status,
+          pickup_address: form.pickup,
+          delivery_address: form.delivery,
+          notes: form.notes,
+          driver_id: form.driverId ? Number(form.driverId) : null,
         }),
       });
-      setForm({ loadNumber: "", status: "Created", pickup: "", delivery: "", notes: "" });
+      setForm({ loadNumber: "", status: "Created", pickup: "", delivery: "", notes: "", driverId: "" });
       await fetchLoads();
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to create load");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to create load"));
     } finally {
       setCreating(false);
     }
@@ -94,6 +122,7 @@ export default function AdminDashboard() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl text-gold">Admin Dashboard</h1>
         <div className="space-x-4 text-sm">
+          <Link className="link" href="/admin/drivers">Drivers</Link>
           <Link className="link" href="/driver/loads">Driver Loads</Link>
           <Link className="link" href="/driver/pod">Driver POD</Link>
         </div>
@@ -118,6 +147,18 @@ export default function AdminDashboard() {
             <option>Assigned</option>
             <option>In Progress</option>
             <option>Delivered</option>
+          </select>
+          <select
+            className="input w-full"
+            value={form.driverId}
+            onChange={(e) => setForm({ ...form, driverId: e.target.value })}
+          >
+            <option value="">Assign Driver (optional)</option>
+            {drivers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}{d.email ? ` (${d.email})` : ""}
+              </option>
+            ))}
           </select>
           <input
             className="input w-full"
@@ -152,10 +193,10 @@ export default function AdminDashboard() {
             <div key={l.id} className="border border-white/10 rounded-lg p-3">
               <div className="text-gold">
                 <Link className="link" href={`/admin/loads/${l.id}`}>
-                  {l.fields?.["Load #"] || l.id}
+                  {l.load_number || l.id}
                 </Link>
               </div>
-              <div className="text-xs text-slate">{l.fields?.["Pickup Address"]} → {l.fields?.["Delivery Address"]}</div>
+              <div className="text-xs text-slate">{l.pickup_address} → {l.delivery_address}</div>
             </div>
           ))}
           {loads.length === 0 && <div className="text-xs text-slate">No loads yet.</div>}

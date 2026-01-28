@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, getToken } from "../lib/api";
+import { apiFetch, getErrorMessage, getToken } from "../lib/api";
 
 type Props = {
   from: string;
@@ -21,8 +21,8 @@ export default function MapPreview({ from, to }: Props) {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         setData(res);
-      } catch (e: any) {
-        setError(e?.message ?? "Failed to load route");
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load route"));
       }
     })();
   }, [from, to]);

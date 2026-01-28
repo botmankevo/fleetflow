@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import UploadField from "../../../../components/UploadField";
 import SignaturePad from "../../../../components/SignaturePad";
-import { apiFetch, getToken } from "../../../../lib/api";
+import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
 
 export default function PodPage() {
   const [loadId, setLoadId] = useState("");
@@ -36,7 +36,7 @@ export default function PodPage() {
         router.replace("/login");
       }
     })();
-  }, []);
+  }, [router]);
 
   async function submit() {
     setError(null);
@@ -62,8 +62,8 @@ export default function PodPage() {
         body: form,
       });
       setMessage(`Uploaded. Links: ${res.links?.length || 0}`);
-    } catch (e: any) {
-      setError(e?.message ?? "Upload failed");
+    } catch (err) {
+      setError(getErrorMessage(err, "Upload failed"));
     }
   }
 
@@ -75,7 +75,7 @@ export default function PodPage() {
     <main className="p-6 space-y-6">
       <h1 className="text-xl text-gold">POD Upload</h1>
       <div className="card space-y-4">
-        <input className="input w-full" placeholder="Load Record ID (recXXXX)" value={loadId} onChange={(e) => setLoadId(e.target.value)} />
+        <input className="input w-full" type="number" placeholder="Load ID (numeric)" value={loadId} onChange={(e) => setLoadId(e.target.value)} />
         <UploadField label="POD Files" multiple onChange={setFiles} />
         <SignaturePad onChange={setSignature} />
         {error && <div className="text-red-400 text-sm">{error}</div>}

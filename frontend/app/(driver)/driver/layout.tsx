@@ -45,6 +45,9 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         <Link className="link" href="/driver">Driver</Link>
         <Link className="link" href="/driver/loads">Loads</Link>
         <Link className="link" href="/driver/pod">POD</Link>
+        <Link className="link" href="/driver/pod-history">POD History</Link>
+        <Link className="link" href="/driver/expenses">Expenses</Link>
+        <Link className="link" href="/driver/account">Account</Link>
         {role === "admin" || role === "dispatcher" ? (
           <Link className="link" href="/admin">Admin View</Link>
         ) : null}

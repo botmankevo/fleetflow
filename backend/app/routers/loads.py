@@ -1,70 +1,77 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from app.core.security import verify_token
-from app.core.config import settings
-from app.services.airtable import AirtableClient
-from app.schemas.loads import LoadCreate, LoadUpdate
+from app.core.database import get_db
+from app.schemas.loads import LoadCreate, LoadUpdate, LoadResponse
+from app import models
 
 router = APIRouter(prefix="/loads", tags=["loads"])
 
 
-@router.get("")
-def list_loads(token: dict = verify_token):
+@router.get("", response_model=list[LoadResponse])
+def list_loads(token: dict = verify_token, db: Session = Depends(get_db)):
     role = token.get("role")
-    email = token.get("email")
-    carrier_record_id = token.get("carrier_record_id")
-    if not carrier_record_id:
-        raise HTTPException(status_code=400, detail="Missing carrier_record_id")
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
 
-    airtable = AirtableClient()
-
+    query = db.query(models.Load).filter(models.Load.carrier_id == carrier_id)
     if role == "driver":
-        driver_record_id = airtable.find_driver_record_id(email, carrier_record_id)
-        if not driver_record_id:
+        if not token.get("driver_id"):
             return []
-        formula = f"AND({airtable.formula_linked_record('Carrier', carrier_record_id)}, {airtable.formula_linked_record('Driver', driver_record_id)})"
-    else:
-        formula = airtable.formula_linked_record("Carrier", carrier_record_id)
-
-    records = airtable.list_records(settings.AIRTABLE_TABLE_LOADS, formula=formula)
-    return records
+        query = query.filter(models.Load.driver_id == token.get("driver_id"))
+    return query.order_by(models.Load.created_at.desc()).all()
 
 
-@router.get("/{record_id}")
-def get_load(record_id: str, token: dict = verify_token):
-    carrier_record_id = token.get("carrier_record_id")
-    if not carrier_record_id:
-        raise HTTPException(status_code=400, detail="Missing carrier_record_id")
+@router.get("/{load_id}", response_model=LoadResponse)
+def get_load(load_id: int, token: dict = verify_token, db: Session = Depends(get_db)):
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
 
-    airtable = AirtableClient()
-    record = airtable.get_record(settings.AIRTABLE_TABLE_LOADS, record_id)
-    carrier_links = record.get("fields", {}).get("Carrier", [])
-    if carrier_record_id not in carrier_links:
+    load = db.query(models.Load).filter(models.Load.id == load_id, models.Load.carrier_id == carrier_id).first()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+    if token.get("role") == "driver" and token.get("driver_id") and load.driver_id != token.get("driver_id"):
         raise HTTPException(status_code=403, detail="Access denied")
-    return record
+    return load
 
 
-@router.post("")
-def create_load(payload: LoadCreate, token: dict = verify_token):
-    carrier_record_id = token.get("carrier_record_id")
-    if not carrier_record_id:
-        raise HTTPException(status_code=400, detail="Missing carrier_record_id")
+@router.post("", response_model=LoadResponse)
+def create_load(payload: LoadCreate, token: dict = verify_token, db: Session = Depends(get_db)):
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
 
-    fields = payload.fields.copy()
-    fields["Carrier"] = [carrier_record_id]
-    airtable = AirtableClient()
-    return airtable.create_record(settings.AIRTABLE_TABLE_LOADS, fields)
+    load = models.Load(
+        carrier_id=carrier_id,
+        driver_id=payload.driver_id,
+        load_number=payload.load_number,
+        status=payload.status,
+        pickup_address=payload.pickup_address,
+        delivery_address=payload.delivery_address,
+        notes=payload.notes,
+    )
+    db.add(load)
+    db.commit()
+    db.refresh(load)
+    return load
 
 
-@router.patch("/{record_id}")
-def update_load(record_id: str, payload: LoadUpdate, token: dict = verify_token):
-    carrier_record_id = token.get("carrier_record_id")
-    if not carrier_record_id:
-        raise HTTPException(status_code=400, detail="Missing carrier_record_id")
+@router.patch("/{load_id}", response_model=LoadResponse)
+def update_load(load_id: int, payload: LoadUpdate, token: dict = verify_token, db: Session = Depends(get_db)):
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
 
-    airtable = AirtableClient()
-    record = airtable.get_record(settings.AIRTABLE_TABLE_LOADS, record_id)
-    carrier_links = record.get("fields", {}).get("Carrier", [])
-    if carrier_record_id not in carrier_links:
+    load = db.query(models.Load).filter(models.Load.id == load_id, models.Load.carrier_id == carrier_id).first()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+    if token.get("role") == "driver" and token.get("driver_id") and load.driver_id != token.get("driver_id"):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    return airtable.update_record(settings.AIRTABLE_TABLE_LOADS, record_id, payload.fields)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(load, field, value)
+    db.commit()
+    db.refresh(load)
+    return load

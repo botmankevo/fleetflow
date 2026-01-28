@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, setToken } from "../../../lib/api";
+import { apiFetch, getErrorMessage, setToken } from "../../../lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,8 +31,8 @@ export default function LoginPage() {
       });
       if (me?.role === "driver") router.push("/driver");
       else router.push("/admin");
-    } catch (e: any) {
-      setError(e?.message ?? "Login failed");
+    } catch (err) {
+      setError(getErrorMessage(err, "Login failed"));
     } finally {
       setLoading(false);
     }

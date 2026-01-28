@@ -5,6 +5,8 @@ from app.core.config import settings
 
 class AirtableClient:
     def __init__(self) -> None:
+        if not settings.ENABLE_AIRTABLE:
+            raise ValueError("Airtable integration is disabled")
         if not settings.AIRTABLE_PAT or not settings.AIRTABLE_BASE_ID:
             raise ValueError("AIRTABLE_PAT and AIRTABLE_BASE_ID are required")
         self.base_id = settings.AIRTABLE_BASE_ID

@@ -5,6 +5,8 @@ from app.core.config import settings
 
 class DropboxService:
     def __init__(self) -> None:
+        if not settings.ENABLE_DROPBOX:
+            raise ValueError("Dropbox integration is disabled")
         if not settings.DROPBOX_ACCESS_TOKEN:
             raise ValueError("DROPBOX_ACCESS_TOKEN is required")
         self.token = settings.DROPBOX_ACCESS_TOKEN

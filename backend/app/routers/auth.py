@@ -1,99 +1,106 @@
-from fastapi import APIRouter, HTTPException
-from app.core.security import create_access_token, verify_token
-import hashlib
-import hmac
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from app.core.security import create_access_token, verify_token, hash_password, verify_password
+from app.core.database import get_db
 import secrets
-from app.schemas.auth import DevLoginRequest, DevLoginResponse, MeResponse, LoginRequest
-from app.services.airtable import AirtableClient
+from app.schemas.auth import DevLoginRequest, DevLoginResponse, MeResponse, LoginRequest, ChangePasswordRequest
+from app import models
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/dev-login", response_model=DevLoginResponse)
-def dev_login(payload: DevLoginRequest):
-    carrier_record_id = payload.carrier_record_id
-    if not carrier_record_id and payload.carrier_code:
-        try:
-            airtable = AirtableClient()
-            carrier_record_id = airtable.find_carrier_record_id(payload.carrier_code)
-        except Exception:
-            carrier_record_id = None
+def dev_login(payload: DevLoginRequest, db: Session = Depends(get_db)):
+    carrier = None
+    if payload.carrier_id:
+        carrier = db.query(models.Carrier).filter(models.Carrier.id == payload.carrier_id).first()
+    if not carrier and payload.carrier_code:
+        carrier = db.query(models.Carrier).filter(models.Carrier.internal_code == payload.carrier_code).first()
+    if not carrier and payload.carrier_name:
+        carrier = db.query(models.Carrier).filter(models.Carrier.name == payload.carrier_name).first()
 
-    if not carrier_record_id:
-        raise HTTPException(status_code=400, detail="Invalid carrier code or record id")
+    if not carrier:
+        carrier = models.Carrier(
+            name=payload.carrier_name or payload.carrier_code or "FleetFlow Carrier",
+            internal_code=payload.carrier_code,
+        )
+        db.add(carrier)
+        db.commit()
+        db.refresh(carrier)
+
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user:
+        temp_password = secrets.token_hex(12)
+        user = models.User(
+            email=payload.email,
+            password_hash=hash_password(temp_password),
+            role=payload.role,
+            carrier_id=carrier.id,
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     token = create_access_token(
         {
-            "email": payload.email,
-            "role": payload.role,
-            "carrier_record_id": carrier_record_id,
+            "user_id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "carrier_id": carrier.id,
+            "driver_id": user.driver_id,
         }
     )
     return {"access_token": token, "token_type": "bearer"}
 
 
-def _verify_password(plain: str, stored: str) -> bool:
-    # Format: pbkdf2$<salt_hex>$<hash_hex>
-    if stored.startswith("pbkdf2$"):
-        try:
-            _, salt_hex, hash_hex = stored.split("$", 2)
-            salt = bytes.fromhex(salt_hex)
-            expected = bytes.fromhex(hash_hex)
-            derived = hashlib.pbkdf2_hmac("sha256", plain.encode("utf-8"), salt, 120_000)
-            return hmac.compare_digest(derived, expected)
-        except Exception:
-            return False
-    # Fallback to plain (internal-only convenience)
-    return hmac.compare_digest(plain, stored)
-
-
 @router.post("/login", response_model=DevLoginResponse)
-def login(payload: LoginRequest):
-    airtable = AirtableClient()
-    user = airtable.find_user_by_email(payload.email)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == payload.email, models.User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    fields = user.get("fields", {})
-    stored_password = fields.get("Password")
-    role = fields.get("Role")
-    carrier_links = fields.get("Carrier", [])
-    carrier_record_id = carrier_links[0] if carrier_links else None
-
-    if not stored_password or not role or not carrier_record_id:
-        raise HTTPException(status_code=400, detail="User record incomplete")
-
-    if not _verify_password(payload.password, stored_password):
+    if not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token(
         {
-            "email": payload.email,
-            "role": role,
-            "carrier_record_id": carrier_record_id,
+            "user_id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "carrier_id": user.carrier_id,
+            "driver_id": user.driver_id,
         }
     )
     return {"access_token": token, "token_type": "bearer"}
 
 
 @router.get("/me", response_model=MeResponse)
-def me(token: dict = verify_token):
+def me(token: dict = Depends(verify_token)):
     email = token.get("email")
     role = token.get("role")
-    carrier_record_id = token.get("carrier_record_id")
-    if not email or not role or not carrier_record_id:
+    carrier_id = token.get("carrier_id")
+    user_id = token.get("user_id")
+    if not email or not role or not carrier_id or not user_id:
         raise HTTPException(status_code=400, detail="Invalid token payload")
-
-    driver_record_id = None
-    try:
-        airtable = AirtableClient()
-        driver_record_id = airtable.find_driver_record_id(email, carrier_record_id)
-    except Exception:
-        driver_record_id = None
 
     return {
         "email": email,
         "role": role,
-        "carrier_record_id": carrier_record_id,
-        "driver_record_id": driver_record_id,
+        "carrier_id": carrier_id,
+        "driver_id": token.get("driver_id"),
+        "user_id": user_id,
     }
+
+
+@router.post("/change-password")
+def change_password(payload: ChangePasswordRequest, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    user_id = token.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Invalid token payload")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"ok": True}

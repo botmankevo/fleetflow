@@ -3,6 +3,8 @@ from app.core.config import settings
 
 
 def get_route(from_address: str, to_address: str) -> dict:
+    if not settings.ENABLE_GOOGLE_MAPS:
+        raise ValueError("Google Maps integration is disabled")
     if not settings.GOOGLE_MAPS_API_KEY:
         raise ValueError("GOOGLE_MAPS_API_KEY is required")
     params = {
