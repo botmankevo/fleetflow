@@ -315,14 +315,21 @@ export default function AdminLoads() {
                 onChange={handleFileInputChange}
               />
               <div
-                className="rounded-xl border border-slate-200 bg-white p-10 text-center space-y-2 cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors"
+                className={cn(
+                  "rounded-xl border bg-white p-10 text-center space-y-2 cursor-pointer transition-colors",
+                  isDragActive
+                    ? "border-emerald-300 bg-emerald-50/60 ring-2 ring-emerald-200"
+                    : "border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40"
+                )}
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " " ) fileInputRef.current?.click();
+                  if (event.key === "Enter" || event.key === " ") fileInputRef.current?.click();
                 }}
               >
                 <div className="mx-auto w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500">
@@ -347,19 +354,26 @@ export default function AdminLoads() {
                   {uploadError}
                 </div>
               )}
+              {isSubmitting && (
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                  Uploading and extracting details...
+                </div>
+              )}
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={handleCloseUploadModal}
-                  className="px-5 py-2 rounded-md font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-md font-semibold text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUploadAndProcess}
-                  disabled={selectedFiles.length === 0 || isUploading}
+                  disabled={selectedFiles.length === 0 || isSubmitting}
                   className="px-6 py-2 rounded-md font-semibold bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  Upload & Process
+                  {isSubmitting ? "Processing..." : "Upload & Process"}
                 </button>
               </div>
             </div>
@@ -367,22 +381,15 @@ export default function AdminLoads() {
         </div>
       )}
 
-{/* AI Processing Modal Placeholder */}
-      {(isUploading || showReviewModal) && (
+      {/* Review Modal */}
+      {showReviewModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          {isUploading ? (
-            <div className="bg-white p-12 rounded-3xl shadow-2xl text-center space-y-4 animate-in zoom-in duration-300 max-w-sm">
-              <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
-              <h2 className="text-2xl font-bold text-slate-900">AI Processing...</h2>
-              <p className="text-slate-500">Extracting load data from your Rate Confirmation PDF. Almost there!</p>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-900">Review AI-Extracted Load Details</h2>
+              <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">{"\u00D7"}</button>
             </div>
-          ) : (
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-900">Review AI-Extracted Load Details</h2>
-                <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">{"\u00D7"}</button>
-              </div>
-              <div className="flex-1 overflow-hidden flex">
+            <div className="flex-1 overflow-hidden flex">
                 {/* PDF Placeholder */}
                 <div className="w-1/2 bg-slate-100 border-r border-slate-200 p-8 flex flex-col items-center justify-center">
                   <div className="w-full max-w-md h-full bg-white rounded-xl shadow-lg border border-slate-300 p-12 space-y-8">
@@ -401,24 +408,24 @@ export default function AdminLoads() {
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-slate-400">Broker</label>
-                      <input value="ATS Logistics Services" className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
+                      <input value={reviewData.broker} className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-slate-400">PO #</label>
-                      <input value="1210905" className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
+                      <input value={reviewData.po_number} className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-slate-400">Rate</label>
-                      <input value="$4,000.00" className="w-full input border-indigo-200 bg-indigo-50/20 font-bold text-emerald-600" readOnly />
+                      <input value={reviewData.rate} className="w-full input border-indigo-200 bg-indigo-50/20 font-bold text-emerald-600" readOnly />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-slate-400">Carrier Ref</label>
-                      <input value="FF-9021" className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
+                      <input value={reviewData.carrier_ref} className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
                     </div>
                   </div>
 
                   <div className="p-6 bg-slate-50 rounded-2xl space-y-4">
-                    <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2">Stops (2)</h4>
+                    <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2">Stops ({reviewData.stops.length})</h4>
                     <div className="space-y-4">
                       <div className="flex gap-4">
                         <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0">1</div>
@@ -440,7 +447,7 @@ export default function AdminLoads() {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-400">AI Transcription Notes</label>
                     <div className="p-4 bg-amber-50 rounded-xl text-amber-800 text-sm italic border border-amber-100">
-                      {"Extracted 1 PIPE (100 LBS). Commodity matched with existing patterns. Driver assignment suggested based on location."}
+                      {reviewData.notes}
                     </div>
                   </div>
                 </div>

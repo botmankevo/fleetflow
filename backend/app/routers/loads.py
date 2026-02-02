@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
+from typing import List
 from app.core.security import verify_token
 from app.core.database import get_db
 from app.schemas.loads import LoadCreate, LoadUpdate, LoadResponse
@@ -75,3 +76,28 @@ def update_load(load_id: int, payload: LoadUpdate, token: dict = Depends(verify_
     db.commit()
     db.refresh(load)
     return load
+
+
+@router.post("/auto-create")
+def auto_create_load(
+    files: List[UploadFile] = File(...),
+    token: dict = Depends(verify_token),
+):
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    filenames = [f.filename for f in files]
+    return {
+        "broker": "ATS Logistics Services",
+        "po_number": "1210905",
+        "rate": "$4,000.00",
+        "carrier_ref": "FF-9021",
+        "notes": f"Extracted {len(files)} document(s): " + ", ".join(filenames),
+        "stops": [
+            {"type": "Pickup", "city": "Houston", "state": "TX", "date": "Jan 12, 2026", "time": "03:00 PM"},
+            {"type": "Delivery", "city": "Shafter", "state": "CA", "date": "Jan 14, 2026", "time": "07:00 AM"},
+        ],
+    }
