@@ -110,6 +110,7 @@ export default function AdminLoads() {
   const handleAutoCreateClick = () => {
     setSelectedFiles([]);
     setUploadError(null);
+    setIsDragActive(false);
     setShowUploadModal(true);
     setShowNewLoadDropdown(false);
   };
@@ -128,11 +129,11 @@ export default function AdminLoads() {
       }
       const formData = new FormData();
       selectedFiles.forEach((file) => formData.append("files", file));
-      const res = await apiFetch("/loads/auto-create", {
+      const res = (await apiFetch("/loads/auto-create", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
-      });
+      })) as Partial<ReviewData>;
       const normalized: ReviewData = {
         ...DEFAULT_REVIEW_DATA,
         ...res,
@@ -152,6 +153,7 @@ export default function AdminLoads() {
     setShowUploadModal(false);
     setSelectedFiles([]);
     setUploadError(null);
+    setIsDragActive(false);
   };
 
   const validateAndSetFiles = (files?: FileList | File[] | null) => {
@@ -249,7 +251,6 @@ export default function AdminLoads() {
                 </div>
               </button>
             </div>
-          )}
         </div>
       </div>
 
@@ -427,20 +428,24 @@ export default function AdminLoads() {
                   <div className="p-6 bg-slate-50 rounded-2xl space-y-4">
                     <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2">Stops ({reviewData.stops.length})</h4>
                     <div className="space-y-4">
-                      <div className="flex gap-4">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0">1</div>
-                        <div className="space-y-1">
-                          <div className="font-bold text-slate-800 text-sm">Pickup</div>
-                          <div className="text-sm text-slate-500">Houston, TX • Jan 12, 2026 03:00 PM</div>
+                      {reviewData.stops.map((stop, index) => (
+                        <div key={`${stop.type}-${index}`} className="flex gap-4">
+                          <div
+                            className={cn(
+                              "w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0",
+                              index % 2 === 0 ? "bg-emerald-500" : "bg-indigo-500"
+                            )}
+                          >
+                            {index + 1}
+                          </div>
+                          <div className="space-y-1">
+                            <div className="font-bold text-slate-800 text-sm">{stop.type}</div>
+                            <div className="text-sm text-slate-500">
+                              {stop.city}, {stop.state} {"\u2022"} {stop.date} {stop.time}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-4">
-                        <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0">2</div>
-                        <div className="space-y-1">
-                          <div className="font-bold text-slate-800 text-sm">Delivery</div>
-                          <div className="text-sm text-slate-500">Shafter, CA • Jan 14, 2026 07:00 AM</div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
 
@@ -457,7 +462,6 @@ export default function AdminLoads() {
                 <button onClick={() => setShowReviewModal(false)} className="px-8 py-2.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 transition-all">{"Approve & Save Load"}</button>
               </div>
             </div>
-          )}
         </div>
       )}
 
