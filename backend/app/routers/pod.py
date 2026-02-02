@@ -19,7 +19,7 @@ def upload_pod(
     load_id: str = Form(...),
     files: List[UploadFile] = File(...),
     signature: Optional[UploadFile] = File(None),
-    token: dict = verify_token,
+    token: dict = Depends(verify_token),
     db: Session = Depends(get_db),
 ):
     carrier_id = token.get("carrier_id")
@@ -75,7 +75,7 @@ def scan_images(files: List[UploadFile] = File(...)):
 
 
 @router.get("/history", response_model=list[PodHistoryItem])
-def pod_history(token: dict = verify_token, db: Session = Depends(get_db)):
+def pod_history(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     user_id = token.get("user_id")
     if not carrier_id:

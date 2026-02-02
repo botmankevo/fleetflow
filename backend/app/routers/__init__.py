@@ -1,1 +1,1 @@
-from app.routers import auth, loads, pod, maintenance, expenses, drivers, maps, users  # noqa: F401
+from app.routers import auth, loads, pod, maintenance, expenses, drivers, maps, users, equipment, analytics  # noqa: F401

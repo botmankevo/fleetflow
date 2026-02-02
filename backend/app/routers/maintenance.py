@@ -11,7 +11,7 @@ router = APIRouter(prefix="/maintenance", tags=["maintenance"])
 
 
 @router.get("", response_model=list[MaintenanceResponse])
-def list_maintenance(token: dict = verify_token, db: Session = Depends(get_db)):
+def list_maintenance(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -21,7 +21,7 @@ def list_maintenance(token: dict = verify_token, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=MaintenanceResponse)
-def create_maintenance(payload: MaintenanceCreate, token: dict = verify_token, db: Session = Depends(get_db)):
+def create_maintenance(payload: MaintenanceCreate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -42,7 +42,7 @@ def create_maintenance(payload: MaintenanceCreate, token: dict = verify_token, d
 
 
 @router.patch("/{maintenance_id}", response_model=MaintenanceResponse)
-def update_maintenance(maintenance_id: int, payload: MaintenanceUpdate, token: dict = verify_token, db: Session = Depends(get_db)):
+def update_maintenance(maintenance_id: int, payload: MaintenanceUpdate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -62,7 +62,7 @@ def update_maintenance(maintenance_id: int, payload: MaintenanceUpdate, token: d
 
 
 @router.post("/{maintenance_id}/receipt")
-def upload_receipt(maintenance_id: int, file: UploadFile = File(...), token: dict = verify_token, db: Session = Depends(get_db)):
+def upload_receipt(maintenance_id: int, file: UploadFile = File(...), token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")

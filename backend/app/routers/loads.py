@@ -9,7 +9,7 @@ router = APIRouter(prefix="/loads", tags=["loads"])
 
 
 @router.get("", response_model=list[LoadResponse])
-def list_loads(token: dict = verify_token, db: Session = Depends(get_db)):
+def list_loads(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     role = token.get("role")
     carrier_id = token.get("carrier_id")
     if not carrier_id:
@@ -24,7 +24,7 @@ def list_loads(token: dict = verify_token, db: Session = Depends(get_db)):
 
 
 @router.get("/{load_id}", response_model=LoadResponse)
-def get_load(load_id: int, token: dict = verify_token, db: Session = Depends(get_db)):
+def get_load(load_id: int, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -38,7 +38,7 @@ def get_load(load_id: int, token: dict = verify_token, db: Session = Depends(get
 
 
 @router.post("", response_model=LoadResponse)
-def create_load(payload: LoadCreate, token: dict = verify_token, db: Session = Depends(get_db)):
+def create_load(payload: LoadCreate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -59,7 +59,7 @@ def create_load(payload: LoadCreate, token: dict = verify_token, db: Session = D
 
 
 @router.patch("/{load_id}", response_model=LoadResponse)
-def update_load(load_id: int, payload: LoadUpdate, token: dict = verify_token, db: Session = Depends(get_db)):
+def update_load(load_id: int, payload: LoadUpdate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")

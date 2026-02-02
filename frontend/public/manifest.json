@@ -1,0 +1,67 @@
+{
+    "name": "FleetFlow Enterprise",
+    "short_name": "FleetFlow",
+    "description": "Enterprise fleet management and logistics platform",
+    "start_url": "/admin",
+    "display": "standalone",
+    "background_color": "#00112c",
+    "theme_color": "#0abf53",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "business",
+        "productivity",
+        "logistics"
+    ],
+    "shortcuts": [
+        {
+            "name": "Dashboard",
+            "short_name": "Dashboard",
+            "description": "View operations overview",
+            "url": "/admin",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Loads",
+            "short_name": "Loads",
+            "description": "Manage active loads",
+            "url": "/admin/loads",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Drivers",
+            "short_name": "Drivers",
+            "description": "View driver status",
+            "url": "/admin/drivers",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}

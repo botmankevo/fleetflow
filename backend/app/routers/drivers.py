@@ -9,7 +9,7 @@ router = APIRouter(prefix="/drivers", tags=["drivers"])
 
 
 @router.get("", response_model=list[DriverResponse])
-def list_drivers(token: dict = verify_token, db: Session = Depends(get_db)):
+def list_drivers(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -17,7 +17,7 @@ def list_drivers(token: dict = verify_token, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=DriverResponse)
-def create_driver(payload: DriverCreate, token: dict = verify_token, db: Session = Depends(get_db)):
+def create_driver(payload: DriverCreate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -34,7 +34,7 @@ def create_driver(payload: DriverCreate, token: dict = verify_token, db: Session
 
 
 @router.patch("/{driver_id}", response_model=DriverResponse)
-def update_driver(driver_id: int, payload: DriverUpdate, token: dict = verify_token, db: Session = Depends(get_db)):
+def update_driver(driver_id: int, payload: DriverUpdate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")

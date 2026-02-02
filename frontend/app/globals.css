@@ -3,25 +3,145 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  --background: #FFFFFF;
+  --foreground: #00112c;
+  --card: #FFFFFF;
+  --card-foreground: #00112c;
+  --popover: #FFFFFF;
+  --popover-foreground: #00112c;
+  --primary: #0abf53;
+  --primary-foreground: #FFFFFF;
+  --secondary: #f7f7f8;
+  --secondary-foreground: #5c687c;
+  --muted: #eeeff1;
+  --muted-foreground: #8d95a3;
+  --accent: #d7f5e3;
+  --accent-foreground: #067934;
+  --destructive: #e22d2d;
+  --destructive-foreground: #FFFFFF;
+  --border: #d1d5da;
+  --input: #d1d5da;
+  --ring: #83dfa8;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: #00112c;
+  --foreground: #FFFFFF;
+  --card: #0d1e38;
+  --card-foreground: #FFFFFF;
+  --popover: #0d1e38;
+  --popover-foreground: #FFFFFF;
+  --primary: #0abf53;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1a2a44;
+  --secondary-foreground: #f7f7f8;
+  --muted: #2f3e56;
+  --muted-foreground: #8d95a3;
+  --accent: #089a43;
+  --accent-foreground: #FFFFFF;
+  --destructive: #e22d2d;
+  --destructive-foreground: #FFFFFF;
+  --border: #2f3e56;
+  --input: #2f3e56;
+  --ring: #0abf53;
 }
 
 body {
-  @apply bg-ink text-slate;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.glass {
+  backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(209, 213, 218, 0.3);
+}
+
+.dark .glass {
+  background-color: rgba(13, 30, 56, 0.7);
+  border: 1px solid rgba(47, 62, 86, 0.3);
+}
+
+.glass-card {
+  border-radius: 1rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.gradient-btn {
+  background: linear-gradient(135deg, #0abf53 0%, #089a43 100%);
+  color: white;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.gradient-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 15px -3px rgba(10, 191, 83, 0.3);
 }
 
 .card {
-  @apply bg-panel border border-white/10 rounded-xl p-4;
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .btn {
-  @apply bg-gold text-ink font-semibold rounded-lg px-4 py-2 hover:bg-goldSoft transition;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 500;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.btn:hover {
+  opacity: 0.9;
 }
 
 .input {
-  @apply bg-ink border border-white/10 rounded-lg px-3 py-2 text-sm text-slate;
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  outline: none;
+  transition: all 0.2s ease;
 }
 
-.link {
-  @apply text-gold hover:text-goldSoft;
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(10, 191, 83, 0.2);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  color: var(--muted-foreground);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.sidebar-link:hover {
+  background-color: rgba(10, 191, 83, 0.05);
+  color: var(--primary);
+}
+
+.sidebar-link.active {
+  background-color: rgba(10, 191, 83, 0.1);
+  color: var(--primary);
+  font-weight: 600;
 }

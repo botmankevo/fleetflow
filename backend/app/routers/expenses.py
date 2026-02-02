@@ -11,7 +11,7 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 
 @router.get("", response_model=list[ExpenseResponse])
-def list_expenses(token: dict = verify_token, db: Session = Depends(get_db)):
+def list_expenses(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -24,7 +24,7 @@ def list_expenses(token: dict = verify_token, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ExpenseResponse)
-def create_expense(payload: ExpenseCreate, token: dict = verify_token, db: Session = Depends(get_db)):
+def create_expense(payload: ExpenseCreate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -50,7 +50,7 @@ def create_expense(payload: ExpenseCreate, token: dict = verify_token, db: Sessi
 
 
 @router.patch("/{expense_id}", response_model=ExpenseResponse)
-def update_expense(expense_id: int, payload: ExpenseUpdate, token: dict = verify_token, db: Session = Depends(get_db)):
+def update_expense(expense_id: int, payload: ExpenseUpdate, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
@@ -72,7 +72,7 @@ def update_expense(expense_id: int, payload: ExpenseUpdate, token: dict = verify
 
 
 @router.post("/{expense_id}/receipt")
-def upload_receipt(expense_id: int, file: UploadFile = File(...), token: dict = verify_token, db: Session = Depends(get_db)):
+def upload_receipt(expense_id: int, file: UploadFile = File(...), token: dict = Depends(verify_token), db: Session = Depends(get_db)):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")

@@ -11,7 +11,7 @@ services:
     volumes:
       - fleetflow_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetflow} -d ${POSTGRES_DB:-fleetflow}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetflow} -d ${POSTGRES_DB:-fleetflow}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -58,12 +58,12 @@ services:
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-/api}
       BACKEND_URL: http://backend:8000
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
-    command: npm run dev
+    command: npx next dev -p 3000 -H 0.0.0.0
 
 volumes:
   fleetflow_pgdata:

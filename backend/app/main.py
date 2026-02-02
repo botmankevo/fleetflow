@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, loads, pod, maintenance, expenses, drivers, maps, users
+from app.routers import auth, loads, pod, maintenance, expenses, drivers, maps, users, equipment, analytics
 
 app = FastAPI(title="FleetFlow", version="0.1.0")
 
@@ -21,6 +21,8 @@ app.include_router(expenses.router)
 app.include_router(drivers.router)
 app.include_router(maps.router)
 app.include_router(users.router)
+app.include_router(equipment.router)
+app.include_router(analytics.router)
 
 
 @app.get("/health")

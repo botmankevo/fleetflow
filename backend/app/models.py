@@ -15,6 +15,8 @@ class Carrier(Base):
     users = relationship("User", back_populates="carrier")
     drivers = relationship("Driver", back_populates="carrier")
     loads = relationship("Load", back_populates="carrier")
+    equipment = relationship("Equipment", back_populates="carrier")
+    maintenance = relationship("Maintenance", back_populates="carrier")
 
 
 class User(Base):
@@ -63,6 +65,7 @@ class Load(Base):
 
     carrier = relationship("Carrier", back_populates="loads")
     driver = relationship("Driver", back_populates="loads")
+    equipment = relationship("Equipment", back_populates="load")
 
 
 class PodRecord(Base):
@@ -100,4 +103,35 @@ class Maintenance(Base):
     cost = Column(Integer, nullable=False, default=0)
     occurred_at = Column(DateTime, nullable=True)
     receipt_link = Column(String(500), nullable=True)
+    carrier = relationship("Carrier", back_populates="maintenance")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Equipment(Base):
+    __tablename__ = "equipment"
+
+    id = Column(Integer, primary_key=True, index=True)
+    carrier_id = Column(Integer, ForeignKey("carriers.id"), nullable=False, index=True)
+    equipment_type = Column(String(50), nullable=False) # truck, trailer, etc
+    identifier = Column(String(100), nullable=False)
+    status = Column(String(50), nullable=False, default="available") # available, in_use, maintenance
+    assigned_load_id = Column(Integer, ForeignKey("loads.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    carrier = relationship("Carrier", back_populates="equipment")
+    load = relationship("Load", back_populates="equipment")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    carrier_id = Column(Integer, ForeignKey("carriers.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    type = Column(String(50), nullable=False) # urgent, warning, info
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    action_required = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
