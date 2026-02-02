@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, getToken } from "../../../../lib/api";
+import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
 import { ResizableTable } from "../../../../components/ui/resizable-table";
 import { ContributorsTable } from "../../../../components/ui/ruixen-contributors-table";
 import { WidgetContainer } from "../../../../components/dashboard/widget-container";
@@ -19,6 +19,36 @@ type Load = {
   broker: string;
 };
 
+type ReviewStop = {
+  type: "Pickup" | "Delivery";
+  city: string;
+  state: string;
+  date: string;
+  time: string;
+};
+
+type ReviewData = {
+  broker: string;
+  po_number: string;
+  rate: string;
+  carrier_ref: string;
+  notes: string;
+  stops: ReviewStop[];
+};
+
+const DEFAULT_REVIEW_DATA: ReviewData = {
+  broker: "ATS Logistics Services",
+  po_number: "1210905",
+  rate: "$4,000.00",
+  carrier_ref: "FF-9021",
+  notes:
+    "Extracted 1 PIPE (100 LBS). Commodity matched with existing patterns. Driver assignment suggested based on location.",
+  stops: [
+    { type: "Pickup", city: "Houston", state: "TX", date: "Jan 12, 2026", time: "03:00 PM" },
+    { type: "Delivery", city: "Shafter", state: "CA", date: "Jan 14, 2026", time: "07:00 AM" },
+  ],
+};
+
 const SUMMARY_ITEMS = [
   { label: "Active Revenue", value: "$411,897.90", color: "bg-emerald-500" },
   { label: "Pending", value: "$2,272.30", color: "bg-amber-500" },
@@ -30,10 +60,16 @@ export default function AdminLoads() {
   const [, setLoads] = useState<Load[]>([]);
   const [ready, setReady] = useState(false);
   const [showNewLoadDropdown, setShowNewLoadDropdown] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [reviewData, setReviewData] = useState<ReviewData>(DEFAULT_REVIEW_DATA);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -71,14 +107,103 @@ export default function AdminLoads() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleFileUpload = () => {
-    setIsUploading(true);
-    // Simulate AI processing
-    setTimeout(() => {
-      setIsUploading(false);
+  const handleAutoCreateClick = () => {
+    setSelectedFiles([]);
+    setUploadError(null);
+    setShowUploadModal(true);
+    setShowNewLoadDropdown(false);
+  };
+
+  const handleUploadAndProcess = async () => {
+    if (selectedFiles.length === 0) {
+      setUploadError("Please select a rate confirmation file to continue.");
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      const token = getToken();
+      if (!token) {
+        setUploadError("Your session expired. Please log in again.");
+        return;
+      }
+      const formData = new FormData();
+      selectedFiles.forEach((file) => formData.append("files", file));
+      const res = await apiFetch("/loads/auto-create", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const normalized: ReviewData = {
+        ...DEFAULT_REVIEW_DATA,
+        ...res,
+        stops: Array.isArray(res?.stops) && res.stops.length > 0 ? res.stops : DEFAULT_REVIEW_DATA.stops,
+      };
+      setReviewData(normalized);
+      setShowUploadModal(false);
       setShowReviewModal(true);
-      setShowNewLoadDropdown(false);
-    }, 2000);
+    } catch (err) {
+      setUploadError(getErrorMessage(err, "Failed to upload files."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false);
+    setSelectedFiles([]);
+    setUploadError(null);
+  };
+
+  const validateAndSetFiles = (files?: FileList | File[] | null) => {
+    const fileArray = files ? Array.from(files) : [];
+    if (fileArray.length === 0) {
+      setSelectedFiles([]);
+      setUploadError(null);
+      return;
+    }
+    if (fileArray.length > 10) {
+      setUploadError("Please select up to 10 files.");
+      return;
+    }
+    const maxSize = 5 * 1024 * 1024;
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    for (const file of fileArray) {
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError("Unsupported file type. Please use PDF, JPG, or PNG.");
+        return;
+      }
+      if (file.size > maxSize) {
+        setUploadError("File is too large. Maximum size is 5MB.");
+        return;
+      }
+    }
+    setSelectedFiles(fileArray);
+    setUploadError(null);
+  };
+
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    validateAndSetFiles(event.target.files);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+    validateAndSetFiles(event.dataTransfer.files);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
   };
 
   if (!ready) return <div className="p-8 text-slate-400 font-medium">Loading Loads...</div>;
@@ -114,7 +239,7 @@ export default function AdminLoads() {
                 </div>
               </button>
               <button
-                onClick={handleFileUpload}
+                onClick={handleAutoCreateClick}
                 className="w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors"
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">✨</div>
@@ -158,7 +283,91 @@ export default function AdminLoads() {
         <ContributorsTable />
       </WidgetContainer>
 
-      {/* AI Processing Modal Placeholder */}
+      {/* Auto-Create Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-slate-900">Create New Loads</h2>
+                <p className="text-sm text-slate-500">Select Rate Confirmation Document</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
+                  Powered by AI
+                </span>
+                <button
+                  onClick={handleCloseUploadModal}
+                  className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+                  aria-label="Close"
+                >
+                  {"×"}
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                className="hidden"
+                onChange={handleFileInputChange}
+              />
+              <div
+                className="rounded-xl border border-slate-200 bg-white p-10 text-center space-y-2 cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " " ) fileInputRef.current?.click();
+                }}
+              >
+                <div className="mx-auto w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 16V8" />
+                    <path d="M8 12l4-4 4 4" />
+                    <path d="M20 16.5a4.5 4.5 0 0 0-3.5-4.35A5 5 0 1 0 6 13" />
+                  </svg>
+                </div>
+                <div className="text-sm font-semibold text-indigo-600">Click to select</div>
+                <div className="text-xs text-slate-500">or drag and drop up to 10 files</div>
+                <div className="text-[11px] text-slate-400">Supported: PDF, JPG, JPEG, PNG (up to 5MB)</div>
+                {selectedFiles.length > 0 && (
+                  <div className="mt-3 text-xs text-slate-600 font-medium">
+                    Selected: {selectedFiles.slice(0, 3).map((file) => file.name).join(", ")}
+                    {selectedFiles.length > 3 && ` +${selectedFiles.length - 3} more`}
+                  </div>
+                )}
+              </div>
+              {uploadError && (
+                <div className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                  {uploadError}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={handleCloseUploadModal}
+                  className="px-5 py-2 rounded-md font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUploadAndProcess}
+                  disabled={selectedFiles.length === 0 || isUploading}
+                  className="px-6 py-2 rounded-md font-semibold bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Upload & Process
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* AI Processing Modal Placeholder */}
       {(isUploading || showReviewModal) && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           {isUploading ? (
