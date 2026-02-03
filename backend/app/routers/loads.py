@@ -1,10 +1,19 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
+import io
+import re
+from datetime import datetime
 from app.core.security import verify_token
 from app.core.database import get_db
+from app.core.config import settings
 from app.schemas.loads import LoadCreate, LoadUpdate, LoadResponse
+from app.schemas.payroll import LoadPayLedgerResponse, PayeeLedgerResponse, LedgerLineResponse
 from app import models
+from app.services.dropbox import DropboxService
+from pypdf import PdfReader
+from PIL import Image
+from app.services.pay_engine import recalc_load_pay
 
 router = APIRouter(prefix="/loads", tags=["loads"])
 
@@ -78,26 +87,220 @@ def update_load(load_id: int, payload: LoadUpdate, token: dict = Depends(verify_
     return load
 
 
+@router.post("/{load_id}/recalculate-pay")
+def recalculate_pay(load_id: int, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    load = db.query(models.Load).filter(models.Load.id == load_id, models.Load.carrier_id == carrier_id).first()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+
+    recalc_load_pay(db, load)
+    return {"ok": True}
+
+
+@router.get("/{load_id}/pay-ledger", response_model=LoadPayLedgerResponse)
+def get_pay_ledger(load_id: int, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    load = db.query(models.Load).filter(models.Load.id == load_id, models.Load.carrier_id == carrier_id).first()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+
+    lines = (
+        db.query(models.SettlementLedgerLine)
+        .filter(models.SettlementLedgerLine.load_id == load.id)
+        .order_by(models.SettlementLedgerLine.created_at.asc())
+        .all()
+    )
+    if not lines:
+        recalc_load_pay(db, load)
+        lines = (
+            db.query(models.SettlementLedgerLine)
+            .filter(models.SettlementLedgerLine.load_id == load.id)
+            .order_by(models.SettlementLedgerLine.created_at.asc())
+            .all()
+        )
+
+    grouped: dict[int, list[models.SettlementLedgerLine]] = {}
+    for line in lines:
+        grouped.setdefault(line.payee_id, []).append(line)
+
+    by_payee: list[PayeeLedgerResponse] = []
+    load_total = 0.0
+    for payee_id, payee_lines in grouped.items():
+        payee = db.query(models.Payee).filter(models.Payee.id == payee_id).first()
+        subtotal = round(sum(l.amount for l in payee_lines), 2)
+        load_total += subtotal
+        by_payee.append(
+            PayeeLedgerResponse(
+                payee_id=payee_id,
+                payee_name=payee.name if payee else f"Payee {payee_id}",
+                payee_type=payee.payee_type if payee else "person",
+                subtotal=subtotal,
+                lines=[LedgerLineResponse.model_validate(l) for l in payee_lines],
+            )
+        )
+
+    return LoadPayLedgerResponse(
+        load_id=load.id,
+        by_payee=by_payee,
+        load_pay_total=round(load_total, 2),
+    )
+
+
 @router.post("/auto-create")
 def auto_create_load(
     files: List[UploadFile] = File(...),
     token: dict = Depends(verify_token),
+    db: Session = Depends(get_db),
 ):
     carrier_id = token.get("carrier_id")
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Please upload up to 10 files")
 
-    filenames = [f.filename for f in files]
+    allowed_types = {"application/pdf", "image/jpeg", "image/png"}
+    max_size = 5 * 1024 * 1024
+    file_blobs: list[tuple[str, bytes, str]] = []
+    for upload in files:
+        if upload.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="Unsupported file type")
+        content = upload.file.read()
+        if len(content) > max_size:
+            raise HTTPException(status_code=400, detail="File exceeds 5MB limit")
+        file_blobs.append((upload.filename, content, upload.content_type))
+
+    def extract_text_from_pdf(content: bytes) -> str:
+        try:
+            reader = PdfReader(io.BytesIO(content))
+            return "\n".join([page.extract_text() or "" for page in reader.pages])
+        except Exception:
+            return ""
+
+    def ocr_image_bytes(content: bytes) -> str:
+        try:
+            import pytesseract  # type: ignore
+        except Exception:
+            return ""
+        try:
+            image = Image.open(io.BytesIO(content))
+            return pytesseract.image_to_string(image) or ""
+        except Exception:
+            return ""
+
+    def ocr_pdf_bytes(content: bytes) -> str:
+        try:
+            import pytesseract  # type: ignore
+            from pdf2image import convert_from_bytes  # type: ignore
+        except Exception:
+            return ""
+        try:
+            images = convert_from_bytes(content)
+            text_chunks = []
+            for image in images:
+                text_chunks.append(pytesseract.image_to_string(image) or "")
+            return "\n".join([t for t in text_chunks if t])
+        except Exception:
+            return ""
+
+    def find_first(patterns: list[str], text: str) -> str | None:
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+        return None
+
+    def find_city_state_pairs(text: str) -> list[tuple[str, str]]:
+        pairs = []
+        for match in re.finditer(r"([A-Za-z][A-Za-z .'-]+),\\s*([A-Z]{2})\\b", text):
+            city = match.group(1).strip()
+            state = match.group(2).strip()
+            if city and state:
+                pairs.append((city, state))
+        return pairs
+
+    combined_text = ""
+    ocr_text = ""
+    for filename, content, content_type in file_blobs:
+        if content_type == "application/pdf":
+            extracted = extract_text_from_pdf(content)
+            combined_text += "\n" + extracted
+            if len(extracted.strip()) < 50:
+                ocr_text += "\n" + ocr_pdf_bytes(content)
+        elif content_type in {"image/jpeg", "image/png"}:
+            ocr_text += "\n" + ocr_image_bytes(content)
+
+    if ocr_text.strip():
+        combined_text = combined_text + "\n" + ocr_text
+
+    broker = find_first([r"Broker\\s*[:\\-]\\s*([A-Za-z0-9 &.,'/-]{3,})"], combined_text) or "Unknown Broker"
+    po_number = find_first([r"PO\\s*#?\\s*[:\\-]?\\s*([A-Za-z0-9-]+)", r"Purchase Order\\s*#?\\s*[:\\-]?\\s*([A-Za-z0-9-]+)"], combined_text) or "TBD"
+    rate = find_first([r"(\\$[\\d,]+(?:\\.\\d{2})?)"], combined_text) or "$0.00"
+    carrier_ref = find_first([r"Carrier Ref\\s*[:\\-]\\s*([A-Za-z0-9-]+)", r"Carrier\\s*Ref\\s*#?\\s*[:\\-]?\\s*([A-Za-z0-9-]+)"], combined_text) or "TBD"
+    load_number = find_first([r"Load\\s*#?\\s*[:\\-]?\\s*([A-Za-z0-9-]+)"], combined_text)
+    if not load_number:
+        load_number = f"AUTO-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
+    city_pairs = find_city_state_pairs(combined_text)
+    pickup_city, pickup_state = city_pairs[0] if len(city_pairs) > 0 else ("TBD", "TBD")
+    delivery_city, delivery_state = city_pairs[1] if len(city_pairs) > 1 else ("TBD", "TBD")
+
+    pickup_address = f"{pickup_city}, {pickup_state}"
+    delivery_address = f"{delivery_city}, {delivery_state}"
+    notes = f"Auto-created from {len(file_blobs)} file(s)."
+
+    load = models.Load(
+        carrier_id=carrier_id,
+        driver_id=None,
+        load_number=load_number,
+        status="Draft",
+        pickup_address=pickup_address,
+        delivery_address=delivery_address,
+        notes=notes,
+    )
+    db.add(load)
+    db.commit()
+    db.refresh(load)
+
+    file_links: list[str] = []
+    if settings.ENABLE_DROPBOX:
+        try:
+            dropbox = DropboxService()
+            base_path = f"{settings.DROPBOX_ROOT_FOLDER}/{carrier_id}/loads/{load.id}/rate-confirmations"
+            upload_items = [(filename, content) for filename, content, _ in file_blobs]
+            file_links = dropbox.upload_files(upload_items, base_path)
+        except Exception:
+            file_links = []
+
+    if combined_text.strip():
+        extraction = models.LoadExtraction(
+            load_id=load.id,
+            raw_text=combined_text.strip(),
+            source_files=[filename for filename, _, _ in file_blobs],
+        )
+        db.add(extraction)
+        db.commit()
+
+    if file_links:
+        load.notes = f"{notes} Uploaded files: {', '.join(file_links)}"
+        db.commit()
+
     return {
-        "broker": "ATS Logistics Services",
-        "po_number": "1210905",
-        "rate": "$4,000.00",
-        "carrier_ref": "FF-9021",
-        "notes": f"Extracted {len(files)} document(s): " + ", ".join(filenames),
+        "broker": broker,
+        "po_number": po_number,
+        "rate": rate,
+        "carrier_ref": carrier_ref,
+        "notes": notes,
+        "file_links": file_links,
         "stops": [
-            {"type": "Pickup", "city": "Houston", "state": "TX", "date": "Jan 12, 2026", "time": "03:00 PM"},
-            {"type": "Delivery", "city": "Shafter", "state": "CA", "date": "Jan 14, 2026", "time": "07:00 AM"},
+            {"type": "Pickup", "city": pickup_city, "state": pickup_state, "date": "TBD", "time": "TBD"},
+            {"type": "Delivery", "city": delivery_city, "state": delivery_state, "date": "TBD", "time": "TBD"},
         ],
+        "load_id": load.id,
     }

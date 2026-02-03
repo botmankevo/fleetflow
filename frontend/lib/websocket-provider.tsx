@@ -95,7 +95,7 @@ export function WebSocketProvider({
                 ws.close();
             }
         };
-    }, [connect]);
+    }, [connect, ws]);
 
     const subscribe = useCallback((channel: string, callback: (data: unknown) => void) => {
         setSubscribers(prev => {

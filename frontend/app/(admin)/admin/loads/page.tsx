@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
 import { ResizableTable } from "../../../../components/ui/resizable-table";
@@ -34,6 +35,8 @@ type ReviewData = {
   carrier_ref: string;
   notes: string;
   stops: ReviewStop[];
+  file_links?: string[];
+  load_id?: number;
 };
 
 const DEFAULT_REVIEW_DATA: ReviewData = {
@@ -43,6 +46,7 @@ const DEFAULT_REVIEW_DATA: ReviewData = {
   carrier_ref: "FF-9021",
   notes:
     "Extracted 1 PIPE (100 LBS). Commodity matched with existing patterns. Driver assignment suggested based on location.",
+  file_links: [],
   stops: [
     { type: "Pickup", city: "Houston", state: "TX", date: "Jan 12, 2026", time: "03:00 PM" },
     { type: "Delivery", city: "Shafter", state: "CA", date: "Jan 14, 2026", time: "07:00 AM" },
@@ -67,6 +71,8 @@ export default function AdminLoads() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [reviewData, setReviewData] = useState<ReviewData>(DEFAULT_REVIEW_DATA);
+  const [previewItems, setPreviewItems] = useState<{ url: string; type: "pdf" | "image"; name: string }[]>([]);
+  const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(0);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -208,6 +214,42 @@ export default function AdminLoads() {
     setIsDragActive(false);
   };
 
+  useEffect(() => {
+    const objectUrls: string[] = [];
+
+    if (reviewData.file_links && reviewData.file_links.length > 0) {
+      const items = reviewData.file_links.map((rawLink) => {
+        const normalized = rawLink.includes("dropbox")
+          ? rawLink.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
+          : rawLink;
+        const name = normalized.split("/").pop()?.split("?")[0] || "document";
+        const type: "pdf" | "image" = name.toLowerCase().includes(".pdf") ? "pdf" : "image";
+        return { url: normalized, type, name };
+      });
+      setPreviewItems(items);
+      setSelectedPreviewIndex(0);
+      return;
+    }
+
+    if (selectedFiles.length > 0) {
+      const items = selectedFiles.map((file) => {
+        const objectUrl = URL.createObjectURL(file);
+        objectUrls.push(objectUrl);
+        const type: "pdf" | "image" = file.type === "application/pdf" ? "pdf" : "image";
+        return { url: objectUrl, type, name: file.name };
+      });
+      setPreviewItems(items);
+      setSelectedPreviewIndex(0);
+      return () => {
+        objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      };
+    }
+
+    setPreviewItems([]);
+    setSelectedPreviewIndex(0);
+    return undefined;
+  }, [reviewData.file_links, selectedFiles]);
+
   if (!ready) return <div className="p-8 text-slate-400 font-medium">Loading Loads...</div>;
 
   return (
@@ -234,7 +276,7 @@ export default function AdminLoads() {
                 onClick={() => router.push('/admin/loads/new')}
                 className="w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors border-b border-slate-50"
               >
-                <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">📝</div>
+                <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">MAN</div>
                 <div className="text-left">
                   <div className="font-bold text-slate-900 text-sm">Manual Load Entry</div>
                   <div className="text-xs text-slate-400">Enter load details manually</div>
@@ -244,13 +286,14 @@ export default function AdminLoads() {
                 onClick={handleAutoCreateClick}
                 className="w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors"
               >
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">✨</div>
+                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">AI</div>
                 <div className="text-left">
                   <div className="font-bold text-slate-900 text-sm">Auto-Create from PDF</div>
                   <div className="text-xs text-slate-400">AI extraction from Rate Confirmation</div>
                 </div>
               </button>
             </div>
+          )}
         </div>
       </div>
 
@@ -391,18 +434,62 @@ export default function AdminLoads() {
               <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">{"\u00D7"}</button>
             </div>
             <div className="flex-1 overflow-hidden flex">
-                {/* PDF Placeholder */}
-                <div className="w-1/2 bg-slate-100 border-r border-slate-200 p-8 flex flex-col items-center justify-center">
-                  <div className="w-full max-w-md h-full bg-white rounded-xl shadow-lg border border-slate-300 p-12 space-y-8">
-                    <div className="h-6 w-3/4 bg-slate-100 rounded" />
-                    <div className="h-4 w-1/2 bg-slate-100 rounded" />
-                    <div className="space-y-4 pt-12">
-                      <div className="h-4 w-full bg-slate-50 rounded" />
-                      <div className="h-4 w-full bg-slate-50 rounded" />
-                      <div className="h-4 w-2/3 bg-slate-50 rounded" />
+                <div className="w-1/2 bg-slate-100 border-r border-slate-200 p-6 flex flex-col items-center justify-center">
+                  {previewItems.length > 0 ? (
+                    <div className="w-full h-full flex flex-col gap-3">
+                      <div className="w-full flex-1 bg-white rounded-xl shadow-lg border border-slate-300 overflow-hidden">
+                        {previewItems[selectedPreviewIndex]?.type === "pdf" ? (
+                          <iframe
+                            title="Rate Confirmation Preview"
+                            src={previewItems[selectedPreviewIndex]?.url}
+                            className="w-full h-full"
+                          />
+                        ) : (
+                          <div className="relative w-full h-full">
+                            <Image
+                              src={previewItems[selectedPreviewIndex]?.url || ""}
+                              alt="Rate Confirmation Preview"
+                              fill
+                              sizes="50vw"
+                              unoptimized={previewItems[selectedPreviewIndex]?.url?.startsWith("blob:")}
+                              className="object-contain"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>Previewing {previewItems.length} file(s)</span>
+                        <span className="truncate max-w-[60%]">{previewItems[selectedPreviewIndex]?.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                        {previewItems.map((item, index) => (
+                          <button
+                            key={`${item.name}-${index}`}
+                            onClick={() => setSelectedPreviewIndex(index)}
+                            className={cn(
+                              "px-3 py-1 rounded-lg border text-[11px] font-semibold whitespace-nowrap",
+                              index === selectedPreviewIndex
+                                ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                            )}
+                          >
+                            {item.type === "pdf" ? "PDF" : "IMG"} {item.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="pt-24 text-center text-slate-300 italic font-medium">Rate Confirmation Preview</div>
-                  </div>
+                  ) : (
+                    <div className="w-full max-w-md h-full bg-white rounded-xl shadow-lg border border-slate-300 p-12 space-y-8">
+                      <div className="h-6 w-3/4 bg-slate-100 rounded" />
+                      <div className="h-4 w-1/2 bg-slate-100 rounded" />
+                      <div className="space-y-4 pt-12">
+                        <div className="h-4 w-full bg-slate-50 rounded" />
+                        <div className="h-4 w-full bg-slate-50 rounded" />
+                        <div className="h-4 w-2/3 bg-slate-50 rounded" />
+                      </div>
+                      <div className="pt-24 text-center text-slate-300 italic font-medium">Rate Confirmation Preview</div>
+                    </div>
+                  )}
                 </div>
                 {/* Fields Review */}
                 <div className="w-1/2 overflow-y-auto p-8 bg-white custom-scrollbar space-y-8">

@@ -21,11 +21,36 @@ type Driver = {
   email?: string | null;
 };
 
+type LedgerLine = {
+  id: number;
+  category: string;
+  description?: string | null;
+  amount: number;
+  locked_at?: string | null;
+  settlement_id?: number | null;
+};
+
+type PayeeLedger = {
+  payee_id: number;
+  payee_name: string;
+  payee_type: string;
+  subtotal: number;
+  lines: LedgerLine[];
+};
+
+type LoadPayLedger = {
+  load_id: number;
+  currency: string;
+  by_payee: PayeeLedger[];
+  load_pay_total: number;
+};
+
 export default function AdminLoadDetail() {
   const params = useParams();
   const loadId = params?.id as string;
   const [load, setLoad] = useState<Load | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [payLedger, setPayLedger] = useState<LoadPayLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
@@ -54,12 +79,32 @@ export default function AdminLoadDetail() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setLoad(res);
+        const ledger = await apiFetch(`/loads/${loadId}/pay-ledger`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setPayLedger(ledger);
         setReady(true);
       } catch (err) {
         setError(getErrorMessage(err, "Failed to load"));
       }
     })();
   }, [loadId, router]);
+
+  async function recalcPay() {
+    try {
+      const token = getToken();
+      await apiFetch(`/loads/${loadId}/recalculate-pay`, {
+        method: "POST",
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+      });
+      const ledger = await apiFetch(`/loads/${loadId}/pay-ledger`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPayLedger(ledger);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to recalculate pay"));
+    }
+  }
 
   async function save() {
     if (!load) return;
@@ -100,7 +145,7 @@ export default function AdminLoadDetail() {
   return (
     <main className="p-6 space-y-6">
       <header className="flex items-center justify-between">
-        <Link className="link" href="/admin/loads">← Back</Link>
+        <Link className="link" href="/admin/loads">{"<- Back"}</Link>
         <div className="text-right">
           <h1 className="text-xl text-gold">Load {load.load_number || load.id}</h1>
           <div className="text-xs text-slate">
@@ -163,6 +208,58 @@ export default function AdminLoadDetail() {
           {saving ? "Saving..." : "Save"}
         </button>
       </div>
+
+      <section className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg text-gold">Drivers Payable (Grouped by Payee)</h2>
+            <p className="text-xs text-slate">Ledger lines are grouped per payee with subtotals.</p>
+          </div>
+          <button className="btn" onClick={recalcPay}>
+            Recalculate
+          </button>
+        </div>
+
+        {!payLedger && <div className="text-xs text-slate">Loading pay ledger...</div>}
+        {payLedger?.by_payee.map((payee) => (
+          <div key={payee.payee_id} className="border border-white/10 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-white font-semibold">{payee.payee_name}</div>
+                <div className="text-xs text-slate">Type: {payee.payee_type}</div>
+              </div>
+              <div className="text-sm text-emerald-300 font-semibold">
+                Subtotal: ${payee.subtotal.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {payee.lines.map((line) => (
+                <div key={line.id} className="flex items-center justify-between text-xs border border-white/5 rounded-lg px-3 py-2">
+                  <div>
+                    <div className="text-white/90">{line.description || line.category}</div>
+                    <div className="text-slate/80">{line.category}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {line.locked_at && (
+                      <span className="text-amber-300 text-[11px]">Locked</span>
+                    )}
+                    <span className={line.amount >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                      {line.amount >= 0 ? "+" : ""}${line.amount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {payLedger && (
+          <div className="flex items-center justify-end text-sm text-white font-semibold">
+            Load Pay Total: ${payLedger.load_pay_total.toFixed(2)}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

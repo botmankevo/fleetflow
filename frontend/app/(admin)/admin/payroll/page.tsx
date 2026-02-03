@@ -1,34 +1,97 @@
 "use client";
 
-export default function PayrollManagement() {
-    return (
-        <main className="p-8 bg-slate-50 min-h-screen space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Driver Payroll</h1>
-                <p className="text-slate-500 mt-1">Settlements, earnings, and deductions oversight</p>
-            </div>
+import { useEffect, useState } from "react";
+import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Next Payout</span>
-                    <div className="text-2xl font-bold text-slate-900">$12,450.00</div>
-                    <div className="text-xs text-emerald-600 font-semibold">Feb 5, 2026</div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Pending Settlements</span>
-                    <div className="text-2xl font-bold text-slate-900">8 Loads</div>
-                    <div className="text-xs text-amber-600 font-semibold">Awaiting POD Approval</div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">MTD Total</span>
-                    <div className="text-2xl font-bold text-slate-900">$84,200.00</div>
-                    <div className="text-xs text-indigo-600 font-semibold">+12% from last month</div>
-                </div>
-            </div>
+type Payee = {
+  id: number;
+  name: string;
+  payee_type: string;
+};
 
-            <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm text-center">
-                <p className="text-slate-400 font-medium italic">Detailed payroll ledger integration in progress...</p>
-            </div>
-        </main>
-    );
+export default function PayrollPage() {
+  const [payees, setPayees] = useState<Payee[]>([]);
+  const [selectedPayee, setSelectedPayee] = useState<string>("");
+  const [periodStart, setPeriodStart] = useState("2026-01-26");
+  const [periodEnd, setPeriodEnd] = useState("2026-02-01");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = getToken();
+        const res = await apiFetch("/payroll/payees", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        setPayees(res);
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load payees"));
+      }
+    })();
+  }, []);
+
+  async function createSettlement() {
+    setError(null);
+    setMessage(null);
+    try {
+      const token = getToken();
+      const res = await apiFetch("/payroll/settlements", {
+        method: "POST",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          payee_id: Number(selectedPayee),
+          period_start: new Date(periodStart).toISOString(),
+          period_end: new Date(periodEnd).toISOString(),
+        }),
+      });
+      setMessage(`Created settlement #${res.id} (${res.status})`);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to create settlement"));
+    }
+  }
+
+  return (
+    <main className="p-6 space-y-6">
+      <h1 className="text-xl text-gold">Driver Payroll</h1>
+      {error && <div className="text-red-400 text-sm">{error}</div>}
+      {message && <div className="text-emerald-300 text-sm">{message}</div>}
+
+      <section className="card space-y-4">
+        <h2 className="text-sm text-slate">Create Settlement</h2>
+        <div className="grid gap-3 md:grid-cols-3">
+          <select
+            className="input w-full"
+            value={selectedPayee}
+            onChange={(e) => setSelectedPayee(e.target.value)}
+          >
+            <option value="">Select payee</option>
+            {payees.map((payee) => (
+              <option key={payee.id} value={payee.id}>
+                {payee.name} ({payee.payee_type})
+              </option>
+            ))}
+          </select>
+          <input
+            className="input w-full"
+            type="date"
+            value={periodStart}
+            onChange={(e) => setPeriodStart(e.target.value)}
+          />
+          <input
+            className="input w-full"
+            type="date"
+            value={periodEnd}
+            onChange={(e) => setPeriodEnd(e.target.value)}
+          />
+        </div>
+        <button className="btn" disabled={!selectedPayee} onClick={createSettlement}>
+          Create Settlement Draft
+        </button>
+      </section>
+    </main>
+  );
 }

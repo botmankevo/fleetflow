@@ -3,19 +3,45 @@
 import { useEffect, useState } from "react";
 import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
 
+const TABS = ["Pay rates", "Scheduled payments/deductions", "Additional payee", "Notes", "Driver App"] as const;
+
 type Driver = {
   id: number;
   name: string;
   email?: string | null;
   phone?: string | null;
+  pay_profile?: { pay_type: string; rate: number; driver_kind: string } | null;
+  payee?: { name: string } | null;
+};
+
+type DriverDetail = Driver & {
+  documents: {
+    id: number;
+    doc_type: string;
+    status: string;
+    expires_at?: string | null;
+    attachment_url?: string | null;
+  }[];
+  additional_payees: {
+    id: number;
+    pay_rate_percent: number;
+    payee: { name: string; payee_type: string };
+  }[];
+  recurring_items: {
+    id: number;
+    item_type: string;
+    amount: number;
+    schedule: string;
+    next_date?: string | null;
+    description?: string | null;
+  }[];
 };
 
 export default function AdminDriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<number | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [activeDriver, setActiveDriver] = useState<DriverDetail | null>(null);
+  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Pay rates");
 
   useEffect(() => {
     fetchDrivers();
@@ -33,134 +59,182 @@ export default function AdminDriversPage() {
     }
   }
 
-  async function createDriver(e: React.FormEvent) {
-    e.preventDefault();
-    setCreating(true);
-    setError(null);
+  async function openDriver(driverId: number) {
     try {
       const token = getToken();
-      await apiFetch("/drivers", {
-        method: "POST",
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email || null,
-          phone: form.phone || null,
-        }),
+      const res = await apiFetch(`/payroll/drivers/${driverId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      setForm({ name: "", email: "", phone: "" });
-      await fetchDrivers();
+      setActiveDriver(res);
+      setActiveTab("Pay rates");
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to create driver"));
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function saveDriver(driver: Driver) {
-    setSavingId(driver.id);
-    setError(null);
-    try {
-      const token = getToken();
-      await apiFetch(`/drivers/${driver.id}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: driver.name,
-          email: driver.email || null,
-          phone: driver.phone || null,
-        }),
-      });
-      await fetchDrivers();
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to update driver"));
-    } finally {
-      setSavingId(null);
+      setError(getErrorMessage(err, "Failed to load driver"));
     }
   }
 
   return (
     <main className="p-6 space-y-6">
-      <h1 className="text-xl text-gold">Drivers</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl text-gold">Drivers</h1>
+        <button className="btn">New</button>
+      </div>
       {error && <div className="text-red-400 text-sm">{error}</div>}
 
-      <section className="card space-y-3">
-        <h2 className="text-sm text-slate">Create Driver</h2>
-        <form onSubmit={createDriver} className="grid gap-3">
-          <input
-            className="input w-full"
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <input
-            className="input w-full"
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <input
-            className="input w-full"
-            placeholder="Phone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          <button className="btn" disabled={creating}>
-            {creating ? "Creating..." : "Create Driver"}
-          </button>
-        </form>
+      <section className="card">
+        <div className="grid grid-cols-7 gap-4 text-xs text-slate border-b border-white/10 pb-2">
+          <div>Name</div>
+          <div>Type</div>
+          <div>Status</div>
+          <div>Phone</div>
+          <div>Email</div>
+          <div>Payable To</div>
+          <div>Actions</div>
+        </div>
+        <div className="divide-y divide-white/5">
+          {drivers.map((driver) => (
+            <div key={driver.id} className="grid grid-cols-7 gap-4 py-3 text-sm">
+              <div className="text-emerald-200 font-semibold">{driver.name}</div>
+              <div className="text-slate">
+                {driver.pay_profile?.driver_kind === "owner_operator" ? "Own" : "Drv"}
+              </div>
+              <div className="text-emerald-300">Hired</div>
+              <div className="text-slate">{driver.phone || "-"}</div>
+              <div className="text-slate">{driver.email || "-"}</div>
+              <div className="text-slate">{driver.payee?.name || driver.name}</div>
+              <div>
+                <button className="btn" onClick={() => openDriver(driver.id)}>Edit</button>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
-      <section className="card space-y-3">
-        <h2 className="text-sm text-slate">All Drivers</h2>
-        {drivers.length === 0 && <div className="text-xs text-slate">No drivers yet.</div>}
-        {drivers.map((driver) => (
-          <div key={driver.id} className="border border-white/10 rounded-lg p-3 space-y-2">
-            <div className="grid gap-2 md:grid-cols-3">
-              <input
-                className="input w-full"
-                placeholder="Name"
-                value={driver.name}
-                onChange={(e) =>
-                  setDrivers((prev) =>
-                    prev.map((d) => (d.id === driver.id ? { ...d, name: e.target.value } : d))
-                  )
-                }
-              />
-              <input
-                className="input w-full"
-                placeholder="Email"
-                value={driver.email ?? ""}
-                onChange={(e) =>
-                  setDrivers((prev) =>
-                    prev.map((d) => (d.id === driver.id ? { ...d, email: e.target.value } : d))
-                  )
-                }
-              />
-              <input
-                className="input w-full"
-                placeholder="Phone"
-                value={driver.phone ?? ""}
-                onChange={(e) =>
-                  setDrivers((prev) =>
-                    prev.map((d) => (d.id === driver.id ? { ...d, phone: e.target.value } : d))
-                  )
-                }
-              />
+      {activeDriver && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Edit Driver</h2>
+              <button className="text-slate-500" onClick={() => setActiveDriver(null)}>
+                X
+              </button>
             </div>
-            <button className="btn" onClick={() => saveDriver(driver)} disabled={savingId === driver.id}>
-              {savingId === driver.id ? "Saving..." : "Save"}
-            </button>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <section className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate">Name</label>
+                  <div className="input w-full">{activeDriver.name}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-slate">Payable to</label>
+                  <div className="input w-full">{activeDriver.payee?.name || activeDriver.name}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-slate">Phone</label>
+                  <div className="input w-full">{activeDriver.phone || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-slate">Email</label>
+                  <div className="input w-full">{activeDriver.email || "-"}</div>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold">Documents</h3>
+                <div className="space-y-2">
+                  {activeDriver.documents.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between border border-slate-200 rounded-lg p-3 text-xs">
+                      <div>
+                        <div className="font-semibold">{doc.doc_type}</div>
+                        <div className="text-slate">{doc.status}</div>
+                      </div>
+                      <div className="text-slate">{doc.expires_at ? `exp. ${doc.expires_at.split("T")[0]}` : ""}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex gap-3 border-b border-slate-200 text-xs">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab}
+                      className={`px-3 py-2 ${activeTab === tab ? "text-emerald-600 border-b-2 border-emerald-500" : "text-slate-500"}`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+                <div className="border border-slate-200 rounded-b-lg p-4 text-sm">
+                  {activeTab === "Pay rates" && (
+                    <div className="space-y-3">
+                      <div className="text-xs text-slate">Driver type</div>
+                      <div className="text-sm font-semibold">
+                        {activeDriver.pay_profile?.driver_kind === "owner_operator" ? "Owner operator" : "Company driver"}
+                      </div>
+                      <div className="text-xs text-slate">Pay rate</div>
+                      <div className="text-sm font-semibold">
+                        {activeDriver.pay_profile?.pay_type} {activeDriver.pay_profile?.rate}%
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === "Scheduled payments/deductions" && (
+                    <div className="space-y-2">
+                      {activeDriver.recurring_items.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs border border-slate-200 rounded-lg p-3">
+                          <div>
+                            <div className="font-semibold">{item.description || item.item_type}</div>
+                            <div className="text-slate">{item.schedule}</div>
+                          </div>
+                          <div className={item.amount >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                            {item.amount >= 0 ? "+" : ""}${item.amount.toFixed(2)}
+                          </div>
+                        </div>
+                      ))}
+                      {activeDriver.recurring_items.length === 0 && (
+                        <div className="text-xs text-slate">No recurring items.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === "Additional payee" && (
+                    <div className="space-y-2">
+                      {activeDriver.additional_payees.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs border border-slate-200 rounded-lg p-3">
+                          <div>
+                            <div className="font-semibold">{item.payee.name}</div>
+                            <div className="text-slate">{item.payee.payee_type}</div>
+                          </div>
+                          <div className="text-emerald-600">{item.pay_rate_percent}%</div>
+                        </div>
+                      ))}
+                      {activeDriver.additional_payees.length === 0 && (
+                        <div className="text-xs text-slate">No additional payees.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === "Notes" && (
+                    <div className="text-xs text-slate">Copart, IAA, Central</div>
+                  )}
+
+                  {activeTab === "Driver App" && (
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-slate">Invite accepted on 02/11/25</div>
+                      <button className="btn">Send App Invite</button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
+              <button className="btn" onClick={() => setActiveDriver(null)}>Close</button>
+              <button className="btn">Save</button>
+            </div>
           </div>
-        ))}
-      </section>
+        </div>
+      )}
     </main>
   );
 }
