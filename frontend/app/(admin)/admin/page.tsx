@@ -141,6 +141,23 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8 pb-12">
+      {/* AI Command Center */}
+      <div className="ai-command-bar mb-8 animate-in fade-in slide-in-from-top duration-700">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-10 h-10 rounded-xl gradient-bg-main flex items-center justify-center pulse-glow">
+            <span className="ai-text text-white text-sm">AI</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-foreground font-medium">
+              🤖 <span className="ai-text text-primary">AI Insight:</span> You have 3 loads ready to dispatch. Driver availability is optimal.
+            </p>
+          </div>
+          <Button size="sm" className="gradient-bg-main text-white hover:scale-105 transition-transform rounded-lg">
+            View Suggestions
+          </Button>
+        </div>
+      </div>
+
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="animate-in slide-in-from-left duration-500">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Operations Overview</h1>
@@ -153,7 +170,7 @@ export default function AdminDashboard() {
           <Button variant="outline" size="sm" className="rounded-xl border-glass-border">
             <Download className="w-4 h-4 mr-2" /> Export
           </Button>
-          <Button variant="gradient" size="sm" className="rounded-xl">
+          <Button variant="gradient" size="sm" className="rounded-xl gradient-bg-main text-white hover:scale-105 transition-transform">
             <Plus className="w-4 h-4 mr-2" /> New shipment
           </Button>
         </div>
@@ -165,34 +182,35 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* KPI Section */}
+      {/* KPI Section - Enhanced with AI styling */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: "Active Loads", value: loads.length, icon: Truck, trend: "+12%", color: "text-primary", link: "/admin/loads", filter: "status=active" },
-          { label: "On-Duty Drivers", value: drivers.length, icon: Users, trend: "4 idle", color: "text-blue-500", link: "/admin/drivers", filter: "status=on-duty" },
-          { label: "On-Time Rate", value: "94.8%", icon: CheckCircle2, trend: "+2.1%", color: "text-emerald-500", link: null },
-          { label: "Safety Score", value: "9.2", icon: ShieldCheck, trend: "Pinnacle", color: "text-amber-500", link: null },
+          { label: "On-Duty Drivers", value: drivers.length, icon: Users, trend: "4 idle", color: "text-primary", link: "/admin/drivers", filter: "status=on-duty" },
+          { label: "On-Time Rate", value: "94.8%", icon: CheckCircle2, trend: "+2.1%", color: "text-accent", link: null },
+          { label: "Safety Score", value: "9.2", icon: ShieldCheck, trend: "Pinnacle", color: "text-accent", link: null },
         ].map((kpi, i) => (
           <GlassCard 
             key={i} 
-            className="p-5 group hover:scale-[1.02] cursor-pointer" 
+            className="p-5 group hover:scale-[1.02] cursor-pointer neon-border animate-in fade-in slide-in-from-bottom duration-500" 
+            style={{ animationDelay: `${i * 100}ms` }}
             gradient
             onClick={() => kpi.link && router.push(kpi.link + (kpi.filter ? `?${kpi.filter}` : ''))}
           >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{kpi.label}</p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{kpi.value}</h3>
+                <h3 className="text-3xl font-bold text-foreground mt-1 ai-text">{kpi.value}</h3>
               </div>
-              <div className={cn("p-2.5 rounded-xl bg-secondary/50 group-hover:scale-110 transition-transform", kpi.color)}>
+              <div className={cn("p-2.5 rounded-xl bg-primary/10 group-hover:scale-110 transition-transform glow-primary", kpi.color)}>
                 <kpi.icon className="w-5 h-5" />
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-none text-[10px] font-bold">
+              <Badge variant="secondary" className="bg-accent/10 text-accent border-none text-[10px] font-bold">
                 <TrendingUp className="w-3 h-3 mr-1" /> {kpi.trend}
               </Badge>
-              <span className="text-[10px] text-muted-foreground font-medium">vs last month</span>
+              <span className="text-[10px] text-muted-foreground font-medium">AI tracked</span>
             </div>
           </GlassCard>
         ))}
