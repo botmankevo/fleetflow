@@ -50,13 +50,13 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold leading-tight">
             Streamline your <br />
             fleet operations <br />
-            with <span className="text-white/70">FleetFlow.</span>
+            with <span className="text-white/70">MAIN TMS.</span>
           </h1>
         </div>
 
         <div className="relative z-10">
           <div className="p-6 bg-white/10 rounded-2xl backdrop-blur-lg border border-white/20">
-            <p className="text-lg font-medium italic">{"\"FleetFlow has transformed how we manage our shipments and drivers. It's clean, fast, and reliable.\""}</p>
+            <p className="text-lg font-medium italic">{"\"MAIN TMS has transformed how we manage our shipments and drivers. It's clean, fast, and reliable.\""}</p>
             <div className="mt-4 flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-full"></div>
               <div>
@@ -88,7 +88,7 @@ export default function LoginPage() {
               <label className="text-sm font-semibold text-slate ml-1">Email Address</label>
               <input
                 className="input w-full"
-                placeholder="e.g. admin@fleetflow.app"
+                placeholder="e.g. admin@coxtnl.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

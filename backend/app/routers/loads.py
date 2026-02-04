@@ -30,7 +30,50 @@ def list_loads(token: dict = Depends(verify_token), db: Session = Depends(get_db
         if not token.get("driver_id"):
             return []
         query = query.filter(models.Load.driver_id == token.get("driver_id"))
-    return query.order_by(models.Load.created_at.desc()).all()
+    
+    loads = query.order_by(models.Load.created_at.desc()).all()
+    
+    # Enhance each load with parsed address data
+    result = []
+    for load in loads:
+        load_dict = {
+            'id': load.id,
+            'carrier_id': load.carrier_id,
+            'load_number': load.load_number,
+            'status': load.status,
+            'pickup_address': load.pickup_address,
+            'delivery_address': load.delivery_address,
+            'notes': load.notes,
+            'driver_id': load.driver_id,
+            'broker_name': load.broker_name,
+            'po_number': load.po_number,
+            'rate_amount': load.rate_amount,
+            'broker_rate': load.rate_amount,
+            'created_at': load.created_at.isoformat() if load.created_at else None,
+            'updated_at': None,
+        }
+        
+        # Parse pickup address
+        if load.pickup_address:
+            parts = load.pickup_address.split(',')
+            load_dict['pickup_location'] = parts[0].strip() if len(parts) > 0 else None
+            load_dict['pickup_city'] = parts[1].strip() if len(parts) > 1 else None
+            if len(parts) > 2:
+                state_parts = parts[2].strip().split()
+                load_dict['pickup_state'] = state_parts[0] if state_parts else None
+        
+        # Parse delivery address
+        if load.delivery_address:
+            parts = load.delivery_address.split(',')
+            load_dict['delivery_location'] = parts[0].strip() if len(parts) > 0 else None
+            load_dict['delivery_city'] = parts[1].strip() if len(parts) > 1 else None
+            if len(parts) > 2:
+                state_parts = parts[2].strip().split()
+                load_dict['delivery_state'] = state_parts[0] if state_parts else None
+        
+        result.append(LoadResponse(**load_dict))
+    
+    return result
 
 
 @router.get("/{load_id}", response_model=LoadResponse)

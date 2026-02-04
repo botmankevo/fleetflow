@@ -2,6 +2,194 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './animations.css';
+
+/* Main TMS - Enhanced Global Styles */
+
+/* Improved scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0abf53, #08a045);
+  border-radius: 10px;
+  border: 2px solid #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #08a045, #067534);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(10, 191, 83, 0.3);
+  color: inherit;
+}
+
+/* Custom gradient backgrounds */
+.gradient-bg-main {
+  background: linear-gradient(135deg, #0abf53 0%, #06d6a0 100%);
+}
+
+.gradient-bg-subtle {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+/* Enhanced shadows */
+.shadow-soft {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.shadow-medium {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.shadow-strong {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+}
+
+.shadow-green {
+  box-shadow: 0 4px 16px rgba(10, 191, 83, 0.3);
+}
+
+/* Improved focus states */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: rgba(10, 191, 83, 0.5);
+  border-color: #0abf53;
+  transition: all 0.2s ease;
+}
+
+/* Better button styles */
+button {
+  transition: all 0.2s ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Loading states */
+.loading-dots::after {
+  content: '.';
+  animation: dots 1.5s steps(5, end) infinite;
+}
+
+@keyframes dots {
+  0%, 20% {
+    content: '.';
+  }
+  40% {
+    content: '..';
+  }
+  60%, 100% {
+    content: '...';
+  }
+}
+
+/* Enhanced card styles */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Status indicators */
+.status-indicator {
+  position: relative;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  top: 50%;
+  left: -16px;
+  transform: translateY(-50%);
+}
+
+.status-indicator.active::before {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-indicator.inactive::before {
+  background: #ef4444;
+}
+
+.status-indicator.pending::before {
+  background: #f59e0b;
+}
+
+/* Smooth page transitions */
+.page-transition {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Better mobile touch targets */
+@media (max-width: 768px) {
+  button,
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Dark mode support (future) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --text-primary: #ffffff;
+    --border-color: #333333;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+/* Zoom out for better overview */
+html {
+  zoom: 0.9;
+}
+
+@media (max-width: 1440px) {
+  html {
+    zoom: 0.85;
+  }
+}
+
+@media (max-width: 1280px) {
+  html {
+    zoom: 0.8;
+  }
+}
+
 :root {
   --background: #FFFFFF;
   --foreground: #00112c;

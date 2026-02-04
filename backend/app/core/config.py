@@ -3,12 +3,13 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    app_name: str = "MAIN TMS"
     FLEETFLOW_ENV: str = "dev"
     JWT_SECRET: str = "change-me"
     TOKEN_EXP_MINUTES: int = 1440
     DEBUG: bool = False
 
-    DATABASE_URL: str = "postgresql+psycopg2://fleetflow:fleetflow@localhost:5432/fleetflow"
+    DATABASE_URL: str = "postgresql+psycopg2://fleetflow:fleetflow@db:5432/fleetflow"
 
     AIRTABLE_PAT: str = ""
     AIRTABLE_BASE_ID: str = ""
@@ -23,10 +24,13 @@ class Settings(BaseSettings):
     DROPBOX_ROOT_FOLDER: str = "/FleetFlow"
 
     GOOGLE_MAPS_API_KEY: str = ""
+    MAPBOX_API_KEY: str = ""
+    FMCSA_API_KEY: str = ""
 
     ENABLE_AIRTABLE: bool = False
     ENABLE_DROPBOX: bool = True
     ENABLE_GOOGLE_MAPS: bool = True
+    ENABLE_MAPBOX: bool = True
 
     class Config:
         env_file = ".env"

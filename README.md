@@ -1,6 +1,6 @@
-# FleetFlow Enterprise
+# MAIN TMS (Transportation Management System)
 
-A modern, enterprise-grade fleet management and logistics platform built with Next.js 14, featuring real-time tracking, PWA capabilities, and a stunning DashSpace-inspired UI.
+A modern, enterprise-grade transportation management and logistics platform built with Next.js 14, featuring real-time tracking, PWA capabilities, and a stunning DashSpace-inspired UI.
 
 ## 🚀 Features
 
@@ -41,7 +41,7 @@ A modern, enterprise-grade fleet management and logistics platform built with Ne
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd fleetflow
+cd main-tms
 ```
 
 2. **Frontend Setup**
@@ -85,10 +85,10 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ## 📱 PWA Installation
 
-FleetFlow can be installed as a Progressive Web App:
+MAIN TMS can be installed as a Progressive Web App:
 
 1. Open the application in a mobile browser
-2. Look for the "Install FleetFlow" prompt
+2. Look for the "Install MAIN TMS" prompt
 3. Tap "Install" to add to your home screen
 4. Launch from your home screen for a native app experience
 
@@ -122,7 +122,7 @@ NEXT_PUBLIC_API_BASE=/api
 
 **Backend** (`.env`):
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/fleetflow
+DATABASE_URL=postgresql://user:password@localhost:5432/main_tms
 SECRET_KEY=your-secret-key-here
 ```
 
@@ -160,7 +160,7 @@ This project is proprietary software. All rights reserved.
 
 ## 🆘 Support
 
-For support, email support@fleetflow.com or open an issue in the repository.
+For support, contact your system administrator or open an issue in the repository.
 
 ---
 

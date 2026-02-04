@@ -15,6 +15,17 @@ type Load = {
   driver_id?: number | null;
 };
 
+type DocumentExchange = {
+  id: number;
+  date: string;
+  driver_name: string;
+  type: "BOL" | "Lumper" | "Receipt" | "Other";
+  attachment_url: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+};
+
 type Driver = {
   id: number;
   name: string;
@@ -51,8 +62,10 @@ export default function AdminLoadDetail() {
   const [load, setLoad] = useState<Load | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [payLedger, setPayLedger] = useState<LoadPayLedger | null>(null);
+  const [documents, setDocuments] = useState<DocumentExchange[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<"services" | "documents" | "billing" | "history">("documents");
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
@@ -83,6 +96,17 @@ export default function AdminLoadDetail() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setPayLedger(ledger);
+        
+        // Fetch documents for this load
+        try {
+          const docs = await apiFetch(`/loads/${loadId}/documents`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setDocuments(docs || []);
+        } catch (err) {
+          console.log("No documents yet or endpoint not ready");
+        }
+        
         setReady(true);
       } catch (err) {
         setError(getErrorMessage(err, "Failed to load"));
@@ -209,57 +233,365 @@ export default function AdminLoadDetail() {
         </button>
       </div>
 
-      <section className="card space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg text-gold">Drivers Payable (Grouped by Payee)</h2>
-            <p className="text-xs text-slate">Ledger lines are grouped per payee with subtotals.</p>
-          </div>
-          <button className="btn" onClick={recalcPay}>
-            Recalculate
+      {/* Tabs Navigation */}
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab("services")}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === "services"
+                ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            Services
+          </button>
+          <button
+            onClick={() => setActiveTab("documents")}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === "documents"
+                ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            Documents
+          </button>
+          <button
+            onClick={() => setActiveTab("billing")}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === "billing"
+                ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            Billing
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === "history"
+                ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            History
           </button>
         </div>
 
-        {!payLedger && <div className="text-xs text-slate">Loading pay ledger...</div>}
-        {payLedger?.by_payee.map((payee) => (
-          <div key={payee.payee_id} className="border border-white/10 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-white font-semibold">{payee.payee_name}</div>
-                <div className="text-xs text-slate">Type: {payee.payee_type}</div>
+        {/* Tab Content */}
+        <div className="p-6">
+          {/* Services Tab */}
+          {activeTab === "services" && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Load Services</h3>
+              <div className="text-sm text-gray-600">
+                Services and additional charges for this load will appear here.
               </div>
-              <div className="text-sm text-emerald-300 font-semibold">
-                Subtotal: ${payee.subtotal.toFixed(2)}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">
+                No services added yet
               </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              {payee.lines.map((line) => (
-                <div key={line.id} className="flex items-center justify-between text-xs border border-white/5 rounded-lg px-3 py-2">
+          {/* Documents Tab */}
+          {activeTab === "documents" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
+                <div className="flex gap-2">
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Upload confirmation
+                  </button>
+                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Upload BOL
+                  </button>
+                  <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Other Document
+                  </button>
+                </div>
+              </div>
+
+              {documents.length === 0 ? (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-gray-600 font-medium">No documents yet</p>
+                  <p className="text-sm text-gray-500 mt-1">Documents uploaded by drivers will appear here after approval</p>
+                </div>
+              ) : (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">DATE</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">TYPE</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ATTACHMENT NAME</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">NOTES</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {documents.map((doc) => (
+                        <tr key={doc.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {new Date(doc.date).toLocaleDateString()} {new Date(doc.created_at).toLocaleTimeString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              doc.type === "BOL" ? "bg-blue-100 text-blue-700" :
+                              doc.type === "Lumper" ? "bg-green-100 text-green-700" :
+                              doc.type === "Receipt" ? "bg-purple-100 text-purple-700" :
+                              "bg-gray-100 text-gray-700"
+                            }`}>
+                              {doc.type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-blue-600 hover:text-blue-800">
+                            <a href={doc.attachment_url} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                              </svg>
+                              {doc.attachment_url.split("/").pop()}
+                            </a>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
+                            {doc.notes || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex gap-2">
+                              <button className="text-green-600 hover:text-green-800 p-1">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button className="text-red-600 hover:text-red-800 p-1">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {documents.length > 0 && (
+                <button className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                  Merge documents
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Billing Tab */}
+          {activeTab === "billing" && (
+            <div className="space-y-6">
+              {/* Invoice Section */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <div className="text-white/90">{line.description || line.category}</div>
-                    <div className="text-slate/80">{line.category}</div>
+                    <h3 className="text-lg font-semibold text-gray-900">Invoice: {load.load_number}</h3>
+                    <p className="text-sm text-gray-600">
+                      To: {load.customer_name || "ACERTUS (FKA RCG LOGISTICS LLC)"} / Direct billing
+                    </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {line.locked_at && (
-                      <span className="text-amber-300 text-[11px]">Locked</span>
-                    )}
-                    <span className={line.amount >= 0 ? "text-emerald-300" : "text-rose-300"}>
-                      {line.amount >= 0 ? "+" : ""}${line.amount.toFixed(2)}
-                    </span>
+                  <div className="flex gap-2">
+                    <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+                      Download as PDF
+                    </button>
+                    <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+                      Email
+                    </button>
+                    <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+                      Export to QB
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        ))}
 
-        {payLedger && (
-          <div className="flex items-center justify-end text-sm text-white font-semibold">
-            Load Pay Total: ${payLedger.load_pay_total.toFixed(2)}
-          </div>
-        )}
-      </section>
+                {/* Invoice Line Items */}
+                <div className="overflow-hidden border border-gray-200 rounded-lg">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">DATE</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">DESCRIPTION</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">AMOUNT</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      <tr className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {load.pickup_date || "12/19/25"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          Miles: {load.pickup_address} - {load.delivery_address} distance: 223mi/30mi
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">$350.00</td>
+                      </tr>
+                      <tr className="bg-yellow-50">
+                        <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
+                          TOTAL
+                        </td>
+                        <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">$350.00</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-3 mt-4">
+                  <button className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Create invoice
+                  </button>
+                  <div className="relative inline-block">
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2">
+                      Recalculate
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Drivers Payable Section */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    Drivers Payable
+                    <button className="text-green-600 hover:text-green-700">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </h3>
+                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold">
+                    Additional Deductions
+                  </button>
+                </div>
+
+                {!payLedger && <div className="text-sm text-gray-600">Loading pay ledger...</div>}
+                {payLedger?.by_payee.map((payee) => (
+                  <div key={payee.payee_id} className="border border-gray-200 rounded-lg overflow-hidden mb-4">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">DATE</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">DESCRIPTION</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">AMOUNT</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {payee.lines.map((line) => (
+                          <tr key={line.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {load.pickup_date || "12/19/25"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              <span className="font-medium text-blue-600">{payee.payee_name}</span> {line.description || line.category}
+                            </td>
+                            <td className={`px-4 py-3 text-sm text-right font-semibold ${line.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                              {line.amount >= 0 ? "" : "-"}${Math.abs(line.amount).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-yellow-50">
+                          <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
+                            TOTAL
+                          </td>
+                          <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
+                            ${payee.subtotal.toFixed(2)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+
+                {payLedger && payLedger.by_payee.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No driver payables yet
+                  </div>
+                )}
+              </div>
+
+              {/* Other Payable Section */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    Other Payable
+                    <button className="text-green-600 hover:text-green-700">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </h3>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">DATE</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">DESCRIPTION</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">AMOUNT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td colSpan={3} className="px-4 py-8 text-center text-gray-500 text-sm">
+                          No records
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* History Tab */}
+          {activeTab === "history" && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Load History</h3>
+              <div className="space-y-3">
+                <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">{new Date().toLocaleDateString()}</span>
+                    <span className="text-gray-600">{new Date().toLocaleTimeString()}</span>
+                    <span className="text-gray-900 font-medium">Load created</span>
+                  </div>
+                </div>
+                {load.status && (
+                  <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">{new Date().toLocaleDateString()}</span>
+                      <span className="text-gray-600">{new Date().toLocaleTimeString()}</span>
+                      <span className="text-gray-900 font-medium">Status changed to: {load.status}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

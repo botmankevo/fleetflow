@@ -168,12 +168,17 @@ export default function AdminDashboard() {
       {/* KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: "Active Loads", value: loads.length, icon: Truck, trend: "+12%", color: "text-primary" },
-          { label: "On-Duty Drivers", value: drivers.length, icon: Users, trend: "4 idle", color: "text-blue-500" },
-          { label: "On-Time Rate", value: "94.8%", icon: CheckCircle2, trend: "+2.1%", color: "text-emerald-500" },
-          { label: "Safety Score", value: "9.2", icon: ShieldCheck, trend: "Pinnacle", color: "text-amber-500" },
+          { label: "Active Loads", value: loads.length, icon: Truck, trend: "+12%", color: "text-primary", link: "/admin/loads", filter: "status=active" },
+          { label: "On-Duty Drivers", value: drivers.length, icon: Users, trend: "4 idle", color: "text-blue-500", link: "/admin/drivers", filter: "status=on-duty" },
+          { label: "On-Time Rate", value: "94.8%", icon: CheckCircle2, trend: "+2.1%", color: "text-emerald-500", link: null },
+          { label: "Safety Score", value: "9.2", icon: ShieldCheck, trend: "Pinnacle", color: "text-amber-500", link: null },
         ].map((kpi, i) => (
-          <GlassCard key={i} className="p-5 group hover:scale-[1.02]" gradient>
+          <GlassCard 
+            key={i} 
+            className="p-5 group hover:scale-[1.02] cursor-pointer" 
+            gradient
+            onClick={() => kpi.link && router.push(kpi.link + (kpi.filter ? `?${kpi.filter}` : ''))}
+          >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{kpi.label}</p>

@@ -1,7 +1,7 @@
 {
-    "name": "FleetFlow Enterprise",
-    "short_name": "FleetFlow",
-    "description": "Enterprise fleet management and logistics platform",
+    "name": "MAIN TMS",
+    "short_name": "MAIN TMS",
+    "description": "Modern Transportation Management System",
     "start_url": "/admin",
     "display": "standalone",
     "background_color": "#00112c",

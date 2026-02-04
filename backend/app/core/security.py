@@ -48,3 +48,10 @@ async def verify_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
+
+
+async def get_current_user(
+    token_data: Dict[str, Any] = Depends(verify_token)
+):
+    """Get current user from token - simplified version"""
+    return token_data

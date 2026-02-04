@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
+import ImportModal from "../../../../components/ImportModal";
 
 const TABS = ["Pay rates", "Scheduled payments/deductions", "Additional payee", "Notes", "Driver App"] as const;
 
@@ -42,6 +43,7 @@ export default function AdminDriversPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeDriver, setActiveDriver] = useState<DriverDetail | null>(null);
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Pay rates");
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     fetchDrivers();
@@ -76,7 +78,18 @@ export default function AdminDriversPage() {
     <main className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl text-gold">Drivers</h1>
-        <button className="btn">New</button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setShowImportModal(true)}
+            className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Import
+          </button>
+          <button className="btn">New</button>
+        </div>
       </div>
       {error && <div className="text-red-400 text-sm">{error}</div>}
 
@@ -235,6 +248,36 @@ export default function AdminDriversPage() {
           </div>
         </div>
       )}
+
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        title="Import Drivers"
+        entityType="drivers"
+        onImport={handleImportDrivers}
+      />
     </main>
   );
+}
+
+async function handleImportDrivers(file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  const token = getToken();
+  const response = await fetch("http://localhost:8000/imports/drivers", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Import failed");
+  }
+
+  // Refresh the drivers list after successful import
+  window.location.reload();
 }

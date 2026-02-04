@@ -67,7 +67,7 @@ export function PWAInstallPrompt() {
                         <Download className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="text-sm font-bold text-foreground mb-1">Install FleetFlow</h3>
+                        <h3 className="text-sm font-bold text-foreground mb-1">Install MAIN TMS</h3>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                             Add to your home screen for quick access and offline capabilities
                         </p>

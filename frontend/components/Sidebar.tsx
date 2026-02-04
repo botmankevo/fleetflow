@@ -22,7 +22,8 @@ import {
   FileText, 
   Settings,
   Menu,
-  X
+  X,
+  FileCheck
 } from "lucide-react";
 import { useState } from "react";
 
@@ -33,6 +34,7 @@ const navigation = [
             { name: "Overview", href: "/admin", icon: LayoutDashboard },
             { name: "Dispatch", href: "/admin/dispatch", icon: ClipboardList },
             { name: "Loads", href: "/admin/loads", icon: Truck },
+            { name: "Docs Exchange", href: "/admin/docs-exchange", icon: FileCheck },
             { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
         ]
     },
@@ -109,7 +111,7 @@ export default function Sidebar() {
                             F
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-xl font-bold text-foreground tracking-tight">FleetFlow</span>
+                            <span className="text-xl font-bold text-foreground tracking-tight">MAIN TMS</span>
                             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold -mt-1">Enterprise</span>
                         </div>
                     </div>

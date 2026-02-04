@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
+import ImportModal from "../../../../components/ImportModal";
 
 type Equipment = {
     id: number;
@@ -16,6 +17,7 @@ export default function EquipmentPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
     const [form, setForm] = useState({
         type: "truck",
         identifier: "",
@@ -72,6 +74,15 @@ export default function EquipmentPage() {
                     <h1 className="text-3xl font-bold text-slate">Fleet Equipment</h1>
                     <p className="text-slateSoft mt-1">Manage your trucks, trailers, and other assets.</p>
                 </div>
+                <button 
+                    onClick={() => setShowImportModal(true)}
+                    className="px-4 py-2 bg-white border-2 border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Import Equipment
+                </button>
             </header>
 
             {error && (
@@ -162,6 +173,35 @@ export default function EquipmentPage() {
                     </div>
                 </div>
             </div>
+
+            <ImportModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                title="Import Equipment"
+                entityType="equipment"
+                onImport={handleImportEquipment}
+            />
         </div>
     );
+}
+
+async function handleImportEquipment(file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const token = getToken();
+    const response = await fetch("http://localhost:8000/imports/equipment", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Import failed");
+    }
+
+    window.location.reload();
 }

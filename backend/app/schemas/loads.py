@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from typing import Optional
+from datetime import datetime
 
 
 class LoadBase(BaseModel):
@@ -9,6 +10,9 @@ class LoadBase(BaseModel):
     delivery_address: str
     notes: Optional[str] = None
     driver_id: Optional[int] = None
+    broker_name: Optional[str] = None
+    po_number: Optional[str] = None
+    rate_amount: Optional[float] = None
 
 
 class LoadCreate(LoadBase):
@@ -27,6 +31,17 @@ class LoadUpdate(BaseModel):
 class LoadResponse(LoadBase):
     id: int
     carrier_id: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    
+    # Add fields for frontend compatibility (will be computed from ORM)
+    broker_rate: Optional[float] = None
+    pickup_location: Optional[str] = None
+    pickup_city: Optional[str] = None
+    pickup_state: Optional[str] = None
+    delivery_location: Optional[str] = None
+    delivery_city: Optional[str] = None
+    delivery_state: Optional[str] = None
 
     class Config:
         from_attributes = True

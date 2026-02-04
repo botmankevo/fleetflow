@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch, getToken } from "../../../lib/api";
-import Sidebar from "../../../components/Sidebar";
+import { VerticalDock } from "../../../components/navigation/VerticalDock";
 import Header from "../../../components/Header";
 import { PWAInstallPrompt } from "../../../components/pwa-install-prompt";
 import { WebSocketProvider } from "../../../lib/websocket-provider";
@@ -48,11 +48,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <WebSocketProvider enabled={false}>
       <div className="min-h-screen bg-background">
-        <Sidebar />
-        <div className="lg:pl-64">
+        <VerticalDock />
+        <div className="pl-20">
           <Header />
-          <main className="pt-20 p-4 lg:p-8">
-            <div className="max-w-7xl mx-auto">
+          <main className="pt-20 p-4 lg:p-6">
+            <div className="mx-auto">
               {children}
             </div>
           </main>

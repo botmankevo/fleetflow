@@ -1,14 +1,14 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "FleetFlow Enterprise",
-  description: "Enterprise fleet management and logistics platform",
+  title: "MAIN TMS",
+  description: "Modern Transportation Management System",
   manifest: "/manifest.json",
   themeColor: "#0abf53",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "FleetFlow"
+    title: "MAIN TMS"
   },
   viewport: {
     width: "device-width",

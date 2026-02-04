@@ -1,572 +1,384 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useRef } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
-import { ResizableTable } from "../../../../components/ui/resizable-table";
-import { ContributorsTable } from "../../../../components/ui/ruixen-contributors-table";
-import { WidgetContainer } from "../../../../components/dashboard/widget-container";
-import { cn } from "../../../../lib/utils";
+import React, { useState, useEffect } from 'react';
+import { Plus, LayoutGrid, List, Filter, Download, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { LoadCard, Load, LoadListView, LoadFilters, LoadFilterValues, LoadDetailModal } from '@/components/loads';
+import { StatsCard } from '@/components/common/StatsCard';
 
-type Load = {
-  id: number;
-  load_number?: string | null;
-  pickup_address: string;
-  delivery_address: string;
-  driver_id?: number | null;
-  status: string;
-  rate: string;
-  broker: string;
-};
+export default function LoadsPage() {
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loads, setLoads] = useState<Load[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [filters, setFilters] = useState<LoadFilterValues>({
+    status: [],
+    driver: '',
+    broker: '',
+    dateRange: { start: '', end: '' }
+  });
 
-type ReviewStop = {
-  type: "Pickup" | "Delivery";
-  city: string;
-  state: string;
-  date: string;
-  time: string;
-};
-
-type ReviewData = {
-  broker: string;
-  po_number: string;
-  rate: string;
-  carrier_ref: string;
-  notes: string;
-  stops: ReviewStop[];
-  file_links?: string[];
-  load_id?: number;
-};
-
-const DEFAULT_REVIEW_DATA: ReviewData = {
-  broker: "ATS Logistics Services",
-  po_number: "1210905",
-  rate: "$4,000.00",
-  carrier_ref: "FF-9021",
-  notes:
-    "Extracted 1 PIPE (100 LBS). Commodity matched with existing patterns. Driver assignment suggested based on location.",
-  file_links: [],
-  stops: [
-    { type: "Pickup", city: "Houston", state: "TX", date: "Jan 12, 2026", time: "03:00 PM" },
-    { type: "Delivery", city: "Shafter", state: "CA", date: "Jan 14, 2026", time: "07:00 AM" },
-  ],
-};
-
-const SUMMARY_ITEMS = [
-  { label: "Active Revenue", value: "$411,897.90", color: "bg-emerald-500" },
-  { label: "Pending", value: "$2,272.30", color: "bg-amber-500" },
-  { label: "Completed", value: "$10,082.50", color: "bg-indigo-500" },
-  { label: "Total", value: "$425,602.70", color: "bg-slate-900", isTotal: true },
-];
-
-export default function AdminLoads() {
-  const [, setLoads] = useState<Load[]>([]);
-  const [ready, setReady] = useState(false);
-  const [showNewLoadDropdown, setShowNewLoadDropdown] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [reviewData, setReviewData] = useState<ReviewData>(DEFAULT_REVIEW_DATA);
-  const [previewItems, setPreviewItems] = useState<{ url: string; type: "pdf" | "image"; name: string }[]>([]);
-  const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(0);
-  const router = useRouter();
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  // Fetch loads from API
   useEffect(() => {
-    (async () => {
-      try {
-        const token = getToken();
-        if (!token) {
-          router.replace("/login");
-          return;
-        }
-        const res = await apiFetch("/loads", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        // Enrich mock data if needed for the demo feel
-        const enriched = res.map((l: Load) => ({
-          ...l,
-          rate: l.rate || "$1,250.00",
-          status: l.status || "In Transit",
-          broker: l.broker || "TQL"
-        }));
-        setLoads(enriched);
-        setReady(true);
-      } catch (err) {
-        console.error(err);
-      }
-    })();
-  }, [router]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowNewLoadDropdown(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    fetchLoads();
   }, []);
 
-  const handleAutoCreateClick = () => {
-    setSelectedFiles([]);
-    setUploadError(null);
-    setIsDragActive(false);
-    setShowUploadModal(true);
-    setShowNewLoadDropdown(false);
-  };
-
-  const handleUploadAndProcess = async () => {
-    if (selectedFiles.length === 0) {
-      setUploadError("Please select a rate confirmation file to continue.");
-      return;
-    }
+  const fetchLoads = async () => {
     try {
-      setIsSubmitting(true);
-      const token = getToken();
-      if (!token) {
-        setUploadError("Your session expired. Please log in again.");
-        return;
+      setLoading(true);
+      const token = localStorage.getItem('fleetflow_token'); // Fixed: was 'token', should be 'fleetflow_token'
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+      const response = await fetch(`${apiBase}/loads`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ API SUCCESS! Loaded', data.length, 'loads from API');
+        console.log('First 3 loads:', data.slice(0, 3));
+        setLoads(data);
+      } else {
+        console.error('❌ Failed to fetch loads:', response.status);
+        alert('Failed to load: ' + response.status);
       }
-      const formData = new FormData();
-      selectedFiles.forEach((file) => formData.append("files", file));
-      const res = (await apiFetch("/loads/auto-create", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      })) as Partial<ReviewData>;
-      const normalized: ReviewData = {
-        ...DEFAULT_REVIEW_DATA,
-        ...res,
-        stops: Array.isArray(res?.stops) && res.stops.length > 0 ? res.stops : DEFAULT_REVIEW_DATA.stops,
-      };
-      setReviewData(normalized);
-      setShowUploadModal(false);
-      setShowReviewModal(true);
-    } catch (err) {
-      setUploadError(getErrorMessage(err, "Failed to upload files."));
+    } catch (error) {
+      console.error('Error fetching loads:', error);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const handleCloseUploadModal = () => {
-    setShowUploadModal(false);
-    setSelectedFiles([]);
-    setUploadError(null);
-    setIsDragActive(false);
-  };
+  // Filter loads based on search and filters
+  const filteredLoads = loads.filter(load => {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        load.load_number?.toLowerCase().includes(query) ||
+        load.broker_name?.toLowerCase().includes(query) ||
+        load.driver_name?.toLowerCase().includes(query) ||
+        load.pickup_location?.toLowerCase().includes(query) ||
+        load.delivery_location?.toLowerCase().includes(query);
+      
+      if (!matchesSearch) return false;
+    }
 
-  const validateAndSetFiles = (files?: FileList | File[] | null) => {
-    const fileArray = files ? Array.from(files) : [];
-    if (fileArray.length === 0) {
-      setSelectedFiles([]);
-      setUploadError(null);
-      return;
+    // Status filter
+    if (filters.status && filters.status.length > 0) {
+      if (!filters.status.includes(load.status)) return false;
     }
-    if (fileArray.length > 10) {
-      setUploadError("Please select up to 10 files.");
-      return;
+
+    // Driver filter
+    if (filters.driver) {
+      if (String(load.driver_id) !== filters.driver) return false;
     }
-    const maxSize = 5 * 1024 * 1024;
-    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
-    for (const file of fileArray) {
-      if (!allowedTypes.includes(file.type)) {
-        setUploadError("Unsupported file type. Please use PDF, JPG, or PNG.");
-        return;
+
+    // Broker filter
+    if (filters.broker) {
+      // Assuming broker_id exists or we match by name
+      if (!load.broker_name?.toLowerCase().includes(filters.broker.toLowerCase())) return false;
+    }
+
+    // Date range filter
+    if (filters.dateRange?.start || filters.dateRange?.end) {
+      const pickupDate = load.pickup_date ? new Date(load.pickup_date) : null;
+      
+      if (filters.dateRange.start && pickupDate) {
+        if (pickupDate < new Date(filters.dateRange.start)) return false;
       }
-      if (file.size > maxSize) {
-        setUploadError("File is too large. Maximum size is 5MB.");
-        return;
+      
+      if (filters.dateRange.end && pickupDate) {
+        if (pickupDate > new Date(filters.dateRange.end)) return false;
       }
     }
-    setSelectedFiles(fileArray);
-    setUploadError(null);
+
+    return true;
+  });
+
+  // Calculate stats
+  const stats = {
+    total: loads.length,
+    new: loads.filter(l => l.status === 'new').length,
+    inTransit: loads.filter(l => l.status === 'in_transit').length,
+    delivered: loads.filter(l => l.status === 'delivered').length,
+    totalRevenue: loads.reduce((sum, l) => sum + (l.broker_rate || 0), 0)
   };
 
-  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    validateAndSetFiles(event.target.files);
+  const handleLoadClick = (load: Load) => {
+    setSelectedLoad(load);
+    setShowDetailModal(true);
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragActive(false);
-    validateAndSetFiles(event.dataTransfer.files);
+  const handleEditLoad = (load: Load) => {
+    // TODO: Open edit modal
+    console.log('Edit load:', load);
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragActive(true);
+  const handleDispatchLoad = (load: Load) => {
+    // TODO: Open dispatch modal
+    console.log('Dispatch load:', load);
   };
 
-  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragActive(true);
+  const handleCreateLoad = () => {
+    // TODO: Open create load modal
+    console.log('Create new load');
   };
 
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragActive(false);
+  const handleExport = () => {
+    // TODO: Export loads to CSV/Excel
+    console.log('Export loads');
   };
 
-  useEffect(() => {
-    const objectUrls: string[] = [];
-
-    if (reviewData.file_links && reviewData.file_links.length > 0) {
-      const items = reviewData.file_links.map((rawLink) => {
-        const normalized = rawLink.includes("dropbox")
-          ? rawLink.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
-          : rawLink;
-        const name = normalized.split("/").pop()?.split("?")[0] || "document";
-        const type: "pdf" | "image" = name.toLowerCase().includes(".pdf") ? "pdf" : "image";
-        return { url: normalized, type, name };
-      });
-      setPreviewItems(items);
-      setSelectedPreviewIndex(0);
-      return;
-    }
-
-    if (selectedFiles.length > 0) {
-      const items = selectedFiles.map((file) => {
-        const objectUrl = URL.createObjectURL(file);
-        objectUrls.push(objectUrl);
-        const type: "pdf" | "image" = file.type === "application/pdf" ? "pdf" : "image";
-        return { url: objectUrl, type, name: file.name };
-      });
-      setPreviewItems(items);
-      setSelectedPreviewIndex(0);
-      return () => {
-        objectUrls.forEach((url) => URL.revokeObjectURL(url));
-      };
-    }
-
-    setPreviewItems([]);
-    setSelectedPreviewIndex(0);
-    return undefined;
-  }, [reviewData.file_links, selectedFiles]);
-
-  if (!ready) return <div className="p-8 text-slate-400 font-medium">Loading Loads...</div>;
+  const handleClearFilters = () => {
+    setFilters({
+      status: [],
+      driver: '',
+      broker: '',
+      dateRange: { start: '', end: '' }
+    });
+  };
 
   return (
-    <main className="p-8 space-y-8 bg-slate-50 min-h-screen">
-      {/* Header & Actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Loads</h1>
-          <p className="text-slate-500 mt-1">Manage and track your active transport loads</p>
-        </div>
-
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setShowNewLoadDropdown(!showNewLoadDropdown)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-emerald-100 transition-all flex items-center gap-2 group"
-          >
-            <span className="text-xl group-hover:rotate-90 transition-transform">+</span>
+    <div className="min-h-screen bg-gray-50 p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Loads</h1>
+            <p className="text-gray-600 mt-1">
+              Manage and track all your freight loads
+            </p>
+          </div>
+          
+          <Button onClick={handleCreateLoad} size="lg" className="gap-2">
+            <Plus className="h-5 w-5" />
             New Load
-          </button>
+          </Button>
+        </div>
+      </div>
 
-          {showNewLoadDropdown && (
-            <div className="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              <button
-                onClick={() => router.push('/admin/loads/new')}
-                className="w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors border-b border-slate-50"
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <StatsCard
+          title="Total Loads"
+          value={stats.total}
+          color="blue"
+          description="All time"
+        />
+        <StatsCard
+          title="New Loads"
+          value={stats.new}
+          color="indigo"
+          description="Awaiting dispatch"
+        />
+        <StatsCard
+          title="In Transit"
+          value={stats.inTransit}
+          color="yellow"
+          description="Currently moving"
+        />
+        <StatsCard
+          title="Delivered"
+          value={stats.delivered}
+          color="green"
+          description="This month"
+        />
+        <StatsCard
+          title="Total Revenue"
+          value={`$${(stats.totalRevenue / 1000).toFixed(1)}K`}
+          color="purple"
+          description="This month"
+        />
+      </div>
+
+      <div className="flex gap-6">
+        {/* Filters Sidebar */}
+        {showFilters && (
+          <div className="w-80 flex-shrink-0">
+            <LoadFilters
+              values={filters}
+              onChange={setFilters}
+              onClear={handleClearFilters}
+            />
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1">
+          {/* Toolbar */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              {/* Search */}
+              <div className="flex-1">
+                <Input
+                  placeholder="Search by load #, broker, driver, location..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'card' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('card')}
+                  className="gap-2"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Cards
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="gap-2"
+                >
+                  <List className="h-4 w-4" />
+                  List
+                </Button>
+              </div>
+
+              {/* Filter Toggle */}
+              <Button
+                variant={showFilters ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="gap-2"
               >
-                <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">MAN</div>
-                <div className="text-left">
-                  <div className="font-bold text-slate-900 text-sm">Manual Load Entry</div>
-                  <div className="text-xs text-slate-400">Enter load details manually</div>
-                </div>
-              </button>
-              <button
-                onClick={handleAutoCreateClick}
-                className="w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors"
+                <Filter className="h-4 w-4" />
+                Filters
+                {(filters.status?.length || 0) > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white text-primary text-xs font-bold">
+                    {filters.status?.length || 0}
+                  </span>
+                )}
+              </Button>
+
+              {/* Export */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                className="gap-2"
               >
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">AI</div>
-                <div className="text-left">
-                  <div className="font-bold text-slate-900 text-sm">Auto-Create from PDF</div>
-                  <div className="text-xs text-slate-400">AI extraction from Rate Confirmation</div>
-                </div>
-              </button>
+                <Download className="h-4 w-4" />
+              </Button>
+
+              {/* Refresh */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchLoads}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
+
+            {/* Active Filters Display */}
+            {(filters.status?.length || 0) > 0 && (
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                <span className="text-sm text-gray-600">Active filters:</span>
+                <div className="flex flex-wrap gap-2">
+                  {filters.status?.map(status => (
+                    <span
+                      key={status}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                    >
+                      {status}
+                      <button
+                        onClick={() => {
+                          setFilters({
+                            ...filters,
+                            status: filters.status?.filter(s => s !== status)
+                          });
+                        }}
+                        className="hover:bg-primary/20 rounded-full p-0.5"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Results Count */}
+          <div className="mb-4 text-sm text-gray-600">
+            Showing {filteredLoads.length} of {loads.length} loads
+          </div>
+
+          {/* Content */}
+          {loading ? (
+            <div className="flex items-center justify-center h-64 bg-white rounded-lg border border-gray-200">
+              <div className="text-center">
+                <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                <p className="text-gray-600">Loading loads...</p>
+              </div>
+            </div>
+          ) : filteredLoads.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 bg-white rounded-lg border border-gray-200">
+              <div className="text-center">
+                <div className="text-6xl mb-4">📦</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No loads found
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {searchQuery || (filters.status?.length || 0) > 0
+                    ? 'Try adjusting your search or filters'
+                    : 'Get started by creating your first load'}
+                </p>
+                {!searchQuery && (filters.status?.length || 0) === 0 && (
+                  <Button onClick={handleCreateLoad} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create Load
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : viewMode === 'card' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredLoads.map(load => (
+                <LoadCard
+                  key={load.id}
+                  load={load}
+                  onClick={handleLoadClick}
+                  onEdit={handleEditLoad}
+                  onDispatch={handleDispatchLoad}
+                />
+              ))}
+            </div>
+          ) : (
+            <LoadListView
+              loads={filteredLoads}
+              onRowClick={handleLoadClick}
+              onEdit={handleEditLoad}
+              onDispatch={handleDispatchLoad}
+            />
           )}
         </div>
       </div>
 
-      {/* Financial Summary bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {SUMMARY_ITEMS.map((item) => (
-          <div key={item.label} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group">
-            <div className={cn("absolute top-0 left-0 w-1 h-full transition-all group-hover:w-2", item.color)} />
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</span>
-            <span className={cn("text-2xl font-bold text-slate-900 tracking-tight", item.isTotal && "text-indigo-600")}>{item.value}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Main Table */}
-      <WidgetContainer
-        title="Active Transport Loads"
-        description="Real-time monitoring of fleet deployment and shipment status"
-        className="h-[650px]"
-      >
-        <ResizableTable
-          onEmployeeSelect={(id: string) => console.log("Selected Load:", id)}
-        />
-      </WidgetContainer>
-
-      {/* Contributors Widget (DashSpace Style) */}
-      <WidgetContainer
-        title="Team Allocation"
-        description="Contributors and developers assigned to logistics modules"
-      >
-        <ContributorsTable />
-      </WidgetContainer>
-
-      {/* Auto-Create Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <h2 className="text-lg font-bold text-slate-900">Create New Loads</h2>
-                <p className="text-sm text-slate-500">Select Rate Confirmation Document</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
-                  Powered by AI
-                </span>
-                <button
-                  onClick={handleCloseUploadModal}
-                  className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
-                  aria-label="Close"
-                >
-                  {"×"}
-                </button>
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                multiple
-                className="hidden"
-                onChange={handleFileInputChange}
-              />
-              <div
-                className={cn(
-                  "rounded-xl border bg-white p-10 text-center space-y-2 cursor-pointer transition-colors",
-                  isDragActive
-                    ? "border-emerald-300 bg-emerald-50/60 ring-2 ring-emerald-200"
-                    : "border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40"
-                )}
-                onClick={() => fileInputRef.current?.click()}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") fileInputRef.current?.click();
-                }}
-              >
-                <div className="mx-auto w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500">
-                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 16V8" />
-                    <path d="M8 12l4-4 4 4" />
-                    <path d="M20 16.5a4.5 4.5 0 0 0-3.5-4.35A5 5 0 1 0 6 13" />
-                  </svg>
-                </div>
-                <div className="text-sm font-semibold text-indigo-600">Click to select</div>
-                <div className="text-xs text-slate-500">or drag and drop up to 10 files</div>
-                <div className="text-[11px] text-slate-400">Supported: PDF, JPG, JPEG, PNG (up to 5MB)</div>
-                {selectedFiles.length > 0 && (
-                  <div className="mt-3 text-xs text-slate-600 font-medium">
-                    Selected: {selectedFiles.slice(0, 3).map((file) => file.name).join(", ")}
-                    {selectedFiles.length > 3 && ` +${selectedFiles.length - 3} more`}
-                  </div>
-                )}
-              </div>
-              {uploadError && (
-                <div className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
-                  {uploadError}
-                </div>
-              )}
-              {isSubmitting && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                  Uploading and extracting details...
-                </div>
-              )}
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  onClick={handleCloseUploadModal}
-                  disabled={isSubmitting}
-                  className="px-5 py-2 rounded-md font-semibold text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUploadAndProcess}
-                  disabled={selectedFiles.length === 0 || isSubmitting}
-                  className="px-6 py-2 rounded-md font-semibold bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSubmitting ? "Processing..." : "Upload & Process"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Review Modal */}
-      {showReviewModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-900">Review AI-Extracted Load Details</h2>
-              <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">{"\u00D7"}</button>
-            </div>
-            <div className="flex-1 overflow-hidden flex">
-                <div className="w-1/2 bg-slate-100 border-r border-slate-200 p-6 flex flex-col items-center justify-center">
-                  {previewItems.length > 0 ? (
-                    <div className="w-full h-full flex flex-col gap-3">
-                      <div className="w-full flex-1 bg-white rounded-xl shadow-lg border border-slate-300 overflow-hidden">
-                        {previewItems[selectedPreviewIndex]?.type === "pdf" ? (
-                          <iframe
-                            title="Rate Confirmation Preview"
-                            src={previewItems[selectedPreviewIndex]?.url}
-                            className="w-full h-full"
-                          />
-                        ) : (
-                          <div className="relative w-full h-full">
-                            <Image
-                              src={previewItems[selectedPreviewIndex]?.url || ""}
-                              alt="Rate Confirmation Preview"
-                              fill
-                              sizes="50vw"
-                              unoptimized={previewItems[selectedPreviewIndex]?.url?.startsWith("blob:")}
-                              className="object-contain"
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Previewing {previewItems.length} file(s)</span>
-                        <span className="truncate max-w-[60%]">{previewItems[selectedPreviewIndex]?.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                        {previewItems.map((item, index) => (
-                          <button
-                            key={`${item.name}-${index}`}
-                            onClick={() => setSelectedPreviewIndex(index)}
-                            className={cn(
-                              "px-3 py-1 rounded-lg border text-[11px] font-semibold whitespace-nowrap",
-                              index === selectedPreviewIndex
-                                ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                            )}
-                          >
-                            {item.type === "pdf" ? "PDF" : "IMG"} {item.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full max-w-md h-full bg-white rounded-xl shadow-lg border border-slate-300 p-12 space-y-8">
-                      <div className="h-6 w-3/4 bg-slate-100 rounded" />
-                      <div className="h-4 w-1/2 bg-slate-100 rounded" />
-                      <div className="space-y-4 pt-12">
-                        <div className="h-4 w-full bg-slate-50 rounded" />
-                        <div className="h-4 w-full bg-slate-50 rounded" />
-                        <div className="h-4 w-2/3 bg-slate-50 rounded" />
-                      </div>
-                      <div className="pt-24 text-center text-slate-300 italic font-medium">Rate Confirmation Preview</div>
-                    </div>
-                  )}
-                </div>
-                {/* Fields Review */}
-                <div className="w-1/2 overflow-y-auto p-8 bg-white custom-scrollbar space-y-8">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-400">Broker</label>
-                      <input value={reviewData.broker} className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-400">PO #</label>
-                      <input value={reviewData.po_number} className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-400">Rate</label>
-                      <input value={reviewData.rate} className="w-full input border-indigo-200 bg-indigo-50/20 font-bold text-emerald-600" readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-400">Carrier Ref</label>
-                      <input value={reviewData.carrier_ref} className="w-full input border-indigo-200 bg-indigo-50/20" readOnly />
-                    </div>
-                  </div>
-
-                  <div className="p-6 bg-slate-50 rounded-2xl space-y-4">
-                    <h4 className="font-bold text-slate-900 border-b border-slate-200 pb-2">Stops ({reviewData.stops.length})</h4>
-                    <div className="space-y-4">
-                      {reviewData.stops.map((stop, index) => (
-                        <div key={`${stop.type}-${index}`} className="flex gap-4">
-                          <div
-                            className={cn(
-                              "w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0",
-                              index % 2 === 0 ? "bg-emerald-500" : "bg-indigo-500"
-                            )}
-                          >
-                            {index + 1}
-                          </div>
-                          <div className="space-y-1">
-                            <div className="font-bold text-slate-800 text-sm">{stop.type}</div>
-                            <div className="text-sm text-slate-500">
-                              {stop.city}, {stop.state} {"\u2022"} {stop.date} {stop.time}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-400">AI Transcription Notes</label>
-                    <div className="p-4 bg-amber-50 rounded-xl text-amber-800 text-sm italic border border-amber-100">
-                      {reviewData.notes}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/30">
-                <button onClick={() => setShowReviewModal(false)} className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:text-slate-700 transition-colors">Discard</button>
-                <button onClick={() => setShowReviewModal(false)} className="px-8 py-2.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 transition-all">{"Approve & Save Load"}</button>
-              </div>
-            </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #cbd5e1;
-        }
-      `}</style>
-    </main>
+      {/* Load Detail Modal */}
+      <LoadDetailModal
+        load={selectedLoad}
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedLoad(null);
+        }}
+        onEdit={handleEditLoad}
+        onDispatch={handleDispatchLoad}
+      />
+    </div>
   );
 }
