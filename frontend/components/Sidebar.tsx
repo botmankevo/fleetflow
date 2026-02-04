@@ -102,17 +102,23 @@ export default function Sidebar() {
             )}
 
             <aside className={cn(
-                "w-64 glass-card border-r border-glass-border flex flex-col h-screen fixed left-0 top-0 z-50 transition-transform duration-300 lg:translate-x-0 bg-white dark:bg-[#00112c]",
+                "w-64 glass-card border-r border-glass-border flex flex-col h-screen fixed left-0 top-0 z-50 transition-transform duration-300 lg:translate-x-0 bg-white dark:bg-[#0A1628]",
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
-                <div className="p-6 border-b border-glass-border/10">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 gradient-btn rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-emerald-500/20 italic">
-                            F
+                <div className="p-6 border-b border-glass-border/10 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 opacity-50"></div>
+                    <div className="flex items-center gap-3 relative z-10">
+                        <div className="relative w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden group">
+                            <div className="absolute inset-0 gradient-bg-main opacity-100 group-hover:opacity-90 transition-opacity"></div>
+                            <div className="absolute inset-0 gradient-animated opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <span className="relative z-10 text-white text-xl font-bold ai-text">AI</span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-xl font-bold text-foreground tracking-tight">MAIN TMS</span>
-                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold -mt-1">Enterprise</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl font-bold text-foreground tracking-tight">MAIN</span>
+                                <span className="text-xl font-bold ai-text" style={{background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>TMS</span>
+                            </div>
+                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold -mt-1">AI-Powered Transport</span>
                         </div>
                     </div>
                 </div>

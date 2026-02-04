@@ -35,15 +35,18 @@ export default function Header() {
         <header className="h-20 bg-background/40 backdrop-blur-xl border-b border-glass-border fixed top-0 right-0 left-0 lg:left-64 z-40 flex items-center justify-between px-6 lg:px-8">
             <div className="flex-1 max-w-md ml-12 lg:ml-0">
                 <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                        <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <span className="text-[10px] font-bold text-primary ai-text opacity-0 group-focus-within:opacity-100 transition-opacity">AI</span>
+                    </div>
                     <input
                         type="text"
-                        placeholder="Search operations..."
-                        className="w-full h-10 pl-10 pr-12 rounded-xl bg-secondary/50 border border-glass-border focus:bg-background focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                        placeholder="Ask AI or search operations..."
+                        className="w-full h-11 pl-10 pr-12 rounded-xl bg-secondary/50 border border-glass-border focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all text-sm placeholder:text-muted-foreground"
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 opacity-40 group-focus-within:opacity-0 transition-opacity">
-                        <Command className="w-3 h-3" />
-                        <span className="text-[10px] font-bold">K</span>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 opacity-60 group-focus-within:opacity-0 transition-opacity">
+                        <Command className="w-3 h-3 text-primary" />
+                        <span className="text-[10px] font-bold text-primary">K</span>
                     </div>
                 </div>
             </div>
@@ -51,7 +54,7 @@ export default function Header() {
             <div className="flex items-center gap-2 lg:gap-4">
                 <button className="relative p-2.5 rounded-xl hover:bg-secondary transition-all text-muted-foreground hover:text-foreground active:scale-95 group">
                     <Bell className="w-5 h-5" />
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-destructive rounded-full border-2 border-background group-hover:animate-bounce"></span>
+                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-background group-hover:animate-bounce pulse-glow-accent"></span>
                 </button>
 
                 <div className="flex items-center gap-3 pl-4 border-l border-glass-border/50">
