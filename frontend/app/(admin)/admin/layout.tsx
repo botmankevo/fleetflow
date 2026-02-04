@@ -6,6 +6,7 @@ import { apiFetch, getToken } from "../../../lib/api";
 import { VerticalDock } from "../../../components/navigation/VerticalDock";
 import Header from "../../../components/Header";
 import AICopilot from "../../../components/AICopilot";
+import AICommandPalette from "../../../components/AICommandPalette";
 import { PWAInstallPrompt } from "../../../components/pwa-install-prompt";
 import { WebSocketProvider } from "../../../lib/websocket-provider";
 
@@ -59,6 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </main>
         </div>
         <AICopilot />
+        <AICommandPalette />
         <PWAInstallPrompt />
       </div>
     </WebSocketProvider>

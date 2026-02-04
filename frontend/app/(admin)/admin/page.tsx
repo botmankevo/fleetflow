@@ -25,6 +25,8 @@ import { MaintenanceSchedulerWidget } from "@/components/dashboard/maintenance-s
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import AICommandCenter from "@/components/dashboard/AICommandCenter";
+import { AIAnalyticsWidget, AIInsightsWidget, AIPerformanceWidget } from "@/components/dashboard/AIAnalyticsWidget";
 
 type Load = {
   id: number;
@@ -141,22 +143,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* AI Command Center */}
-      <div className="ai-command-bar mb-8 animate-in fade-in slide-in-from-top duration-700">
-        <div className="flex items-center gap-3 flex-1">
-          <div className="w-10 h-10 rounded-xl gradient-bg-main flex items-center justify-center pulse-glow">
-            <span className="ai-text text-white text-sm">AI</span>
-          </div>
-          <div className="flex-1">
-            <p className="text-sm text-foreground font-medium">
-              🤖 <span className="ai-text text-primary">AI Insight:</span> You have 3 loads ready to dispatch. Driver availability is optimal.
-            </p>
-          </div>
-          <Button size="sm" className="gradient-bg-main text-white hover:scale-105 transition-transform rounded-lg">
-            View Suggestions
-          </Button>
-        </div>
-      </div>
+      {/* AI Command Center - Dynamic Insights */}
+      <AICommandCenter />
 
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="animate-in slide-in-from-left duration-500">
@@ -287,6 +275,10 @@ export default function AdminDashboard() {
         </section>
 
         <section className="space-y-8">
+          {/* AI Analytics Widgets */}
+          <AIInsightsWidget />
+          <AIAnalyticsWidget />
+          
           <WidgetContainer title="Streamline Dispatch">
             <GlassCard className="bg-primary text-white border-none shadow-xl shadow-primary/20 relative overflow-hidden group" gradient>
               <div className="relative z-10 p-2">

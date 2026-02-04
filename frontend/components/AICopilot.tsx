@@ -41,16 +41,39 @@ export default function AICopilot() {
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    // Call AI backend
+    try {
+      const response = await fetch("http://localhost:8000/ai/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          message: input,
+          context: { page: "copilot" },
+        }),
+      });
+
+      const data = await response.json();
+      
       const aiMessage: Message = {
         role: "assistant",
-        content: `I understand you want to: "${input}". Let me help you with that. This is a demo response - in production, I would process your request using advanced AI.`,
+        content: data.response || "I'm having trouble processing that. Please try again.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("AI request failed:", error);
+      const aiMessage: Message = {
+        role: "assistant",
+        content: "I'm currently experiencing connectivity issues. Please try again in a moment.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   return (
