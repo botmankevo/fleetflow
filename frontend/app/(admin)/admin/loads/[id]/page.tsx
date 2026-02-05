@@ -531,6 +531,28 @@ export default function AdminLoadDetail() {
                 {!payLedger && <div className="text-sm text-gray-600">Loading pay ledger...</div>}
                 {payLedger?.by_payee.map((payee) => (
                   <div key={payee.payee_id} className="border border-gray-200 rounded-lg overflow-hidden mb-4">
+                    {/* Payee Header */}
+                    <div className="bg-blue-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">Payee: {payee.payee_name}</h4>
+                        <p className="text-sm text-gray-600">
+                          ({payee.driver_kind ? payee.driver_kind.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : payee.payee_type.charAt(0).toUpperCase() + payee.payee_type.slice(1)} / Payable-To: {payee.payable_to})
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setSelectedPayeeId(payee.payee_id);
+                          setShowAddPayModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Pay
+                      </button>
+                    </div>
+                    
                     <table className="w-full">
                       <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
