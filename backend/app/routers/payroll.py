@@ -1,6 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.core.database import get_db
 from app.core.security import verify_token
@@ -21,6 +22,112 @@ def list_payees(token: dict = Depends(verify_token), db: Session = Depends(get_d
     if not carrier_id:
         raise HTTPException(status_code=400, detail="Missing carrier_id")
     return db.query(models.Payee).filter(models.Payee.carrier_id == carrier_id).all()
+
+
+@router.get("/payables-grouped")
+def get_payables_grouped(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    """
+    Get all unpaid/pending ledger lines grouped by payee.
+    Returns summary for each payee with total amount owed and line count.
+    """
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    
+    # Query unpaid ledger lines grouped by payee
+    grouped = (
+        db.query(
+            models.Payee.id,
+            models.Payee.name,
+            models.Payee.payee_type,
+            func.sum(models.SettlementLedgerLine.amount).label("total_owed"),
+            func.count(models.SettlementLedgerLine.id).label("line_count")
+        )
+        .join(models.SettlementLedgerLine, models.Payee.id == models.SettlementLedgerLine.payee_id)
+        .filter(
+            models.Payee.carrier_id == carrier_id,
+            models.SettlementLedgerLine.settlement_id.is_(None),  # Not in a settlement
+            models.SettlementLedgerLine.locked_at.is_(None),  # Not locked
+            models.SettlementLedgerLine.voided_at.is_(None)  # Not voided
+        )
+        .group_by(models.Payee.id, models.Payee.name, models.Payee.payee_type)
+        .all()
+    )
+    
+    result = []
+    for payee_id, name, payee_type, total_owed, line_count in grouped:
+        result.append({
+            "payee_id": payee_id,
+            "payee_name": name,
+            "payee_type": payee_type,
+            "total_owed": float(total_owed or 0),
+            "pending_line_count": line_count,
+        })
+    
+    return result
+
+
+@router.get("/payables-grouped/{payee_id}/lines")
+def get_payee_ledger_lines(payee_id: int, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    """
+    Get all unpaid ledger lines for a specific payee with load details.
+    """
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    
+    # Verify payee belongs to carrier
+    payee = db.query(models.Payee).filter(
+        models.Payee.id == payee_id,
+        models.Payee.carrier_id == carrier_id
+    ).first()
+    
+    if not payee:
+        raise HTTPException(status_code=404, detail="Payee not found")
+    
+    # Get unpaid lines
+    lines = (
+        db.query(models.SettlementLedgerLine)
+        .filter(
+            models.SettlementLedgerLine.payee_id == payee_id,
+            models.SettlementLedgerLine.settlement_id.is_(None),
+            models.SettlementLedgerLine.locked_at.is_(None),
+            models.SettlementLedgerLine.voided_at.is_(None)
+        )
+        .all()
+    )
+    
+    result = []
+    for line in lines:
+        load_info = None
+        if line.load_id:
+            load = db.query(models.Load).filter(models.Load.id == line.load_id).first()
+            if load:
+                load_info = {
+                    "id": load.id,
+                    "load_number": load.load_number,
+                    "pickup_location": load.pickup_location,
+                    "delivery_location": load.delivery_location,
+                    "status": load.status,
+                }
+        
+        result.append({
+            "id": line.id,
+            "load_id": line.load_id,
+            "load_info": load_info,
+            "category": line.category,
+            "description": line.description,
+            "amount": float(line.amount),
+            "created_at": line.created_at.isoformat() if line.created_at else None,
+        })
+    
+    return {
+        "payee_id": payee.id,
+        "payee_name": payee.name,
+        "payee_type": payee.payee_type,
+        "lines": result,
+        "total": sum(float(line.amount) for line in lines)
+    }
 
 
 @router.get("/drivers/{driver_id}", response_model=DriverDetailResponse)
