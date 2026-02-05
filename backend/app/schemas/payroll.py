@@ -76,6 +76,8 @@ class PayeeLedgerResponse(BaseModel):
     payee_id: int
     payee_name: str
     payee_type: str
+    payable_to: str  # The entity receiving payment
+    driver_kind: Optional[str] = None  # company_driver, owner_operator, etc.
     subtotal: float
     lines: list[LedgerLineResponse]
 

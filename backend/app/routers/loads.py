@@ -177,11 +177,29 @@ def get_pay_ledger(load_id: int, token: dict = Depends(verify_token), db: Sessio
         payee = db.query(models.Payee).filter(models.Payee.id == payee_id).first()
         subtotal = round(sum(l.amount for l in payee_lines), 2)
         load_total += subtotal
+        
+        # Get driver info if this payee is linked to a driver
+        driver_kind = None
+        payable_to = payee.name if payee else f"Payee {payee_id}"
+        
+        if payee:
+            driver = db.query(models.Driver).filter(models.Driver.payee_id == payee_id).first()
+            if driver:
+                pay_profile = db.query(models.DriverPayProfile).filter(
+                    models.DriverPayProfile.driver_id == driver.id,
+                    models.DriverPayProfile.active == True
+                ).first()
+                if pay_profile:
+                    driver_kind = pay_profile.driver_kind
+                    payable_to = payee.name  # Can be customized based on payee_type
+        
         by_payee.append(
             PayeeLedgerResponse(
                 payee_id=payee_id,
                 payee_name=payee.name if payee else f"Payee {payee_id}",
                 payee_type=payee.payee_type if payee else "person",
+                payable_to=payable_to,
+                driver_kind=driver_kind,
                 subtotal=subtotal,
                 lines=[LedgerLineResponse.model_validate(l) for l in payee_lines],
             )
@@ -192,6 +210,58 @@ def get_pay_ledger(load_id: int, token: dict = Depends(verify_token), db: Sessio
         by_payee=by_payee,
         load_pay_total=round(load_total, 2),
     )
+
+
+@router.post("/{load_id}/add-pay-line")
+def add_pay_line(
+    load_id: int,
+    payee_id: int,
+    category: str,
+    amount: float,
+    description: str = None,
+    token: dict = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Add a new pay line item to a load for a specific payee.
+    This is the (+) Add Pay functionality.
+    """
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    
+    # Verify load exists and belongs to carrier
+    load = db.query(models.Load).filter(
+        models.Load.id == load_id,
+        models.Load.carrier_id == carrier_id
+    ).first()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+    
+    # Verify payee exists and belongs to carrier
+    payee = db.query(models.Payee).filter(
+        models.Payee.id == payee_id,
+        models.Payee.carrier_id == carrier_id
+    ).first()
+    if not payee:
+        raise HTTPException(status_code=404, detail="Payee not found")
+    
+    # Create the ledger line
+    line = models.SettlementLedgerLine(
+        load_id=load_id,
+        payee_id=payee_id,
+        category=category,
+        description=description,
+        amount=amount
+    )
+    db.add(line)
+    db.commit()
+    db.refresh(line)
+    
+    return {
+        "ok": True,
+        "line": LedgerLineResponse.model_validate(line)
+    }
 
 
 @router.post("/auto-create")

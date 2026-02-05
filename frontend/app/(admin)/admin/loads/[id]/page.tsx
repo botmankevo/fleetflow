@@ -45,6 +45,8 @@ type PayeeLedger = {
   payee_id: number;
   payee_name: string;
   payee_type: string;
+  payable_to: string;
+  driver_kind?: string | null;
   subtotal: number;
   lines: LedgerLine[];
 };
@@ -68,6 +70,13 @@ export default function AdminLoadDetail() {
   const [activeTab, setActiveTab] = useState<"services" | "documents" | "billing" | "history">("documents");
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  
+  // Add Pay modal state
+  const [showAddPayModal, setShowAddPayModal] = useState(false);
+  const [selectedPayeeId, setSelectedPayeeId] = useState<number | null>(null);
+  const [payCategory, setPayCategory] = useState("driver_pay");
+  const [payAmount, setPayAmount] = useState("");
+  const [payDescription, setPayDescription] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -127,6 +136,39 @@ export default function AdminLoadDetail() {
       setPayLedger(ledger);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to recalculate pay"));
+    }
+  }
+
+  async function addPayLine() {
+    if (!selectedPayeeId || !payAmount) return;
+    
+    setSaving(true);
+    setError(null);
+    try {
+      const token = getToken();
+      await apiFetch(`/loads/${loadId}/add-pay-line?payee_id=${selectedPayeeId}&category=${encodeURIComponent(payCategory)}&amount=${payAmount}&description=${encodeURIComponent(payDescription || '')}`, {
+        method: "POST",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+      
+      // Refresh pay ledger
+      const ledger = await apiFetch(`/loads/${loadId}/pay-ledger`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPayLedger(ledger);
+      
+      // Reset form and close modal
+      setShowAddPayModal(false);
+      setSelectedPayeeId(null);
+      setPayCategory("driver_pay");
+      setPayAmount("");
+      setPayDescription("");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to add pay line"));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -592,6 +634,85 @@ export default function AdminLoadDetail() {
           )}
         </div>
       </div>
+
+      {/* Add Pay Modal */}
+      {showAddPayModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Pay Line Item</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={payCategory}
+                  onChange={(e) => setPayCategory(e.target.value)}
+                >
+                  <option value="driver_pay">Driver Pay</option>
+                  <option value="fuel_advance">Fuel Advance</option>
+                  <option value="bonus">Bonus</option>
+                  <option value="deduction">Deduction</option>
+                  <option value="equipment_lease">Equipment Lease</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={payDescription}
+                  onChange={(e) => setPayDescription(e.target.value)}
+                  placeholder="e.g., Load payment for #1145"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddPayModal(false);
+                  setSelectedPayeeId(null);
+                  setPayCategory("driver_pay");
+                  setPayAmount("");
+                  setPayDescription("");
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addPayLine}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                disabled={saving || !payAmount}
+              >
+                {saving ? "Adding..." : "Add Pay"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
