@@ -25,7 +25,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const me = await apiFetch("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (me?.role !== "admin" && me?.role !== "dispatcher") {
+        // Allow admin, dispatcher, and platform_owner roles
+        if (me?.role === "driver") {
           router.replace("/driver");
           return;
         }

@@ -102,12 +102,11 @@ export default function Sidebar() {
             )}
 
             <aside className={cn(
-                "w-64 glass-card border-r border-glass-border flex flex-col h-screen fixed left-0 top-0 z-50 transition-transform duration-300 lg:translate-x-0 bg-white dark:bg-[#0A1628]",
+                "w-64 border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 z-50 transition-transform duration-300 lg:translate-x-0 bg-white shadow-sm",
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
-                <div className="p-6 border-b border-glass-border/10 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 opacity-50"></div>
-                    <div className="flex items-center gap-3 relative z-10">
+                <div className="p-6 border-b border-gray-200 relative">
+                    <div className="flex items-center gap-3">
                         <div className="relative w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden group">
                             <div className="absolute inset-0 gradient-bg-main opacity-100 group-hover:opacity-90 transition-opacity"></div>
                             <div className="absolute inset-0 gradient-animated opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -123,7 +122,7 @@ export default function Sidebar() {
                     </div>
                 </div>
 
-                <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
+                <nav className="flex-1 px-4 py-6 space-y-6 overflow-hidden hover:overflow-y-auto custom-scrollbar">
                     {navigation.map((group) => (
                         <div key={group.title} className="space-y-1">
                             <h4 className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 opacity-50">

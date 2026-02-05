@@ -32,7 +32,7 @@ export default function Header() {
     }, []);
 
     return (
-        <header className="h-20 bg-background/40 backdrop-blur-xl border-b border-glass-border fixed top-0 right-0 left-0 lg:left-64 z-40 flex items-center justify-between px-6 lg:px-8">
+        <header className="h-20 bg-white border-b border-gray-200 sticky top-0 right-0 left-0 lg:left-64 z-40 flex items-center justify-between px-6 lg:px-8 shadow-sm">
             <div className="flex-1 max-w-md ml-12 lg:ml-0">
                 <div className="relative group">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">

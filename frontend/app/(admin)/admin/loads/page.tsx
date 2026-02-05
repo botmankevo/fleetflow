@@ -126,7 +126,9 @@ export default function LoadsPage() {
   };
 
   const handleCreateLoad = () => {
-    // TODO: Open create load modal
+    // TODO: Implement full create load modal with form
+    const loadNumber = `#${1000 + loads.length + 1}`;
+    alert(`Creating new load ${loadNumber}\n\nThis will open a full form to enter:\n\n• Pickup & Delivery locations\n• Dates & times\n• Rate information\n• Customer/broker details\n• Equipment requirements\n\nFor now, you can see the 15 demo loads in the list!`);
     console.log('Create new load');
   };
 
@@ -156,7 +158,7 @@ export default function LoadsPage() {
             </p>
           </div>
           
-          <Button onClick={handleCreateLoad} size="lg" className="gap-2">
+          <Button onClick={handleCreateLoad} size="lg" className="gap-2 shadow-lg hover:shadow-xl transition-shadow">
             <Plus className="h-5 w-5" />
             New Load
           </Button>
