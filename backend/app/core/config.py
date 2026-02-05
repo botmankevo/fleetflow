@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     ENABLE_GOOGLE_MAPS: bool = True
     ENABLE_MAPBOX: bool = True
 
+    # AI Features
+    AI_PROVIDER: str = "mock"
+    OPENAI_API_KEY: str = ""
+    
+    # Feature Flags
+    DEMO_MODE: bool = True
+    CUSTOMER_PORTAL_ENABLED: bool = True
+
     class Config:
         env_file = ".env"
         case_sensitive = True

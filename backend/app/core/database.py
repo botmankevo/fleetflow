@@ -18,8 +18,7 @@ def get_engine():
         _engine = create_engine(
             settings.DATABASE_URL,
             poolclass=NullPool,
-            echo=settings.DEBUG,
-            connect_args={"connect_timeout": 5}
+            echo=settings.DEBUG
         )
     return _engine
 
