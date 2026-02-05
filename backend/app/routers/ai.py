@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from ..core.database import get_db
 from ..core.security import get_current_user
-from ..models import User, Load, Driver, Equipment
+from ..models import User, Load, Driver
 from pydantic import BaseModel
 import os
 
