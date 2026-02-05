@@ -91,6 +91,13 @@ export default function AdminLoadDetail() {
   const [payCategory, setPayCategory] = useState("driver_pay");
   const [payAmount, setPayAmount] = useState("");
   const [payDescription, setPayDescription] = useState("");
+  
+  // Add Pass-Through modal state
+  const [showPassThroughModal, setShowPassThroughModal] = useState(false);
+  const [ptSourcePayeeId, setPtSourcePayeeId] = useState<number | null>(null);
+  const [ptDestPayeeId, setPtDestPayeeId] = useState<number | null>(null);
+  const [ptAmount, setPtAmount] = useState("");
+  const [ptDescription, setPtDescription] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -181,6 +188,39 @@ export default function AdminLoadDetail() {
       setPayDescription("");
     } catch (err) {
       setError(getErrorMessage(err, "Failed to add pay line"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addPassThrough() {
+    if (!ptSourcePayeeId || !ptDestPayeeId || !ptAmount) return;
+    
+    setSaving(true);
+    setError(null);
+    try {
+      const token = getToken();
+      await apiFetch(`/loads/${loadId}/add-pass-through-deduction?source_payee_id=${ptSourcePayeeId}&destination_payee_id=${ptDestPayeeId}&amount=${ptAmount}&description=${encodeURIComponent(ptDescription || 'Pass-through')}`, {
+        method: "POST",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+      
+      // Refresh pay ledger
+      const ledger = await apiFetch(`/loads/${loadId}/pay-ledger`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPayLedger(ledger);
+      
+      // Reset form and close modal
+      setShowPassThroughModal(false);
+      setPtSourcePayeeId(null);
+      setPtDestPayeeId(null);
+      setPtAmount("");
+      setPtDescription("");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to add pass-through deduction"));
     } finally {
       setSaving(false);
     }
@@ -553,18 +593,32 @@ export default function AdminLoadDetail() {
                           ({payee.driver_kind ? payee.driver_kind.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : payee.payee_type.charAt(0).toUpperCase() + payee.payee_type.slice(1)} / Payable-To: {payee.payable_to})
                         </p>
                       </div>
-                      <button 
-                        onClick={() => {
-                          setSelectedPayeeId(payee.payee_id);
-                          setShowAddPayModal(true);
-                        }}
-                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center gap-1"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add Pay
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setSelectedPayeeId(payee.payee_id);
+                            setShowAddPayModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center gap-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Add Pay
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setPtSourcePayeeId(payee.payee_id);
+                            setShowPassThroughModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium flex items-center gap-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                          </svg>
+                          Pass-Through
+                        </button>
+                      </div>
                     </div>
                     
                     <table className="w-full">
@@ -807,6 +861,112 @@ export default function AdminLoadDetail() {
                 disabled={saving || !payAmount}
               >
                 {saving ? "Adding..." : "Add Pay"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Pass-Through Deduction Modal */}
+      {showPassThroughModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Pass-Through Deduction</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Deduct from one payee and pass through to another (e.g., truck lease, equipment rental)
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">From (Source Payee)</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  value={ptSourcePayeeId || ""}
+                  onChange={(e) => setPtSourcePayeeId(Number(e.target.value))}
+                >
+                  <option value="">Select source payee</option>
+                  {payLedger?.by_payee.map((payee) => (
+                    <option key={payee.payee_id} value={payee.payee_id}>
+                      {payee.payee_name} ({payee.payee_type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-center py-2">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">To (Destination Payee)</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  value={ptDestPayeeId || ""}
+                  onChange={(e) => setPtDestPayeeId(Number(e.target.value))}
+                >
+                  <option value="">Select destination payee</option>
+                  {payLedger?.by_payee
+                    .filter(p => p.payee_id !== ptSourcePayeeId)
+                    .map((payee) => (
+                      <option key={payee.payee_id} value={payee.payee_id}>
+                        {payee.payee_name} ({payee.payee_type})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  value={ptAmount}
+                  onChange={(e) => setPtAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  value={ptDescription}
+                  onChange={(e) => setPtDescription(e.target.value)}
+                  placeholder="e.g., Truck Lease, Trailer Rental"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPassThroughModal(false);
+                  setPtSourcePayeeId(null);
+                  setPtDestPayeeId(null);
+                  setPtAmount("");
+                  setPtDescription("");
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addPassThrough}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300"
+                disabled={saving || !ptSourcePayeeId || !ptDestPayeeId || !ptAmount}
+              >
+                {saving ? "Adding..." : "Add Pass-Through"}
               </button>
             </div>
           </div>
