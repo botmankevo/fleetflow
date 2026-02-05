@@ -107,22 +107,20 @@ export default function Sidebar() {
             )}>
                 <div className="p-6 border-b border-gray-200 relative">
                     <div className="flex items-center gap-3">
-                        <div className="relative w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden group">
-                            <div className="absolute inset-0 gradient-bg-main opacity-100 group-hover:opacity-90 transition-opacity"></div>
-                            <div className="absolute inset-0 gradient-animated opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <span className="relative z-10 text-white text-xl font-bold ai-text">AI</span>
+                        <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                            <img src="/logo.jpeg" alt="MainTMS Logo" className="w-full h-full object-cover" />
                         </div>
                         <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                                <span className="text-xl font-bold text-foreground tracking-tight">MAIN</span>
-                                <span className="text-xl font-bold ai-text" style={{background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>TMS</span>
+                                <span className="text-xl font-bold text-gray-900 tracking-tight">MAIN</span>
+                                <span className="text-xl font-bold text-blue-600">TMS</span>
                             </div>
-                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold -mt-1">AI-Powered Transport</span>
+                            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium -mt-1">Transport Management</span>
                         </div>
                     </div>
                 </div>
 
-                <nav className="flex-1 px-4 py-6 space-y-6 overflow-hidden hover:overflow-y-auto custom-scrollbar">
+                <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto scrollbar-hidden">
                     {navigation.map((group) => (
                         <div key={group.title} className="space-y-1">
                             <h4 className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 opacity-50">
