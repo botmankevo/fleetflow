@@ -72,6 +72,22 @@ class LedgerLineResponse(BaseModel):
         from_attributes = True
 
 
+class PassThroughLineResponse(BaseModel):
+    id: int
+    category: str
+    description: Optional[str] = None
+    amount: float
+    destination_payee_id: Optional[int] = None
+    destination_payee_name: Optional[str] = None
+    source_payee_id: Optional[int] = None
+    source_payee_name: Optional[str] = None
+    locked_at: Optional[datetime] = None
+    settlement_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 class PayeeLedgerResponse(BaseModel):
     payee_id: int
     payee_name: str
@@ -79,7 +95,8 @@ class PayeeLedgerResponse(BaseModel):
     payable_to: str  # The entity receiving payment
     driver_kind: Optional[str] = None  # company_driver, owner_operator, etc.
     subtotal: float
-    lines: list[LedgerLineResponse]
+    lines: list[LedgerLineResponse]  # Regular line items (non pass-through)
+    pass_through_deductions: list[PassThroughLineResponse] = []  # Pass-through deductions (negative)
 
 
 class LoadPayLedgerResponse(BaseModel):

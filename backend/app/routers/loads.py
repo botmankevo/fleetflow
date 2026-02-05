@@ -8,7 +8,7 @@ from app.core.security import verify_token
 from app.core.database import get_db
 from app.core.config import settings
 from app.schemas.loads import LoadCreate, LoadUpdate, LoadResponse
-from app.schemas.payroll import LoadPayLedgerResponse, PayeeLedgerResponse, LedgerLineResponse
+from app.schemas.payroll import LoadPayLedgerResponse, PayeeLedgerResponse, LedgerLineResponse, PassThroughLineResponse
 from app import models
 from app.services.dropbox import DropboxService
 from pypdf import PdfReader
@@ -175,6 +175,66 @@ def get_pay_ledger(load_id: int, token: dict = Depends(verify_token), db: Sessio
     load_total = 0.0
     for payee_id, payee_lines in grouped.items():
         payee = db.query(models.Payee).filter(models.Payee.id == payee_id).first()
+        
+        # Separate regular lines from pass-through items
+        regular_lines = []
+        pass_through_lines = []
+        
+        for line in payee_lines:
+            if line.category == "pass_through":
+                # For pass-through, we need to get the other payee info
+                if line.amount < 0:
+                    # This is a deduction - find who receives it
+                    # Look for description pattern or search for matching positive line
+                    dest_payee_id = None
+                    dest_payee_name = None
+                    
+                    # Try to parse from description "Something → PayeeName"
+                    if line.description and "→" in line.description:
+                        dest_name = line.description.split("→")[-1].strip()
+                        dest_payee_name = dest_name
+                        # Try to find payee by name
+                        dest_payee = db.query(models.Payee).filter(
+                            models.Payee.name.ilike(f"%{dest_name}%"),
+                            models.Payee.carrier_id == load.carrier_id
+                        ).first()
+                        if dest_payee:
+                            dest_payee_id = dest_payee.id
+                    
+                    pass_through_lines.append({
+                        "id": line.id,
+                        "category": line.category,
+                        "description": line.description,
+                        "amount": line.amount,
+                        "destination_payee_id": dest_payee_id,
+                        "destination_payee_name": dest_payee_name,
+                        "source_payee_id": None,
+                        "source_payee_name": None,
+                        "locked_at": line.locked_at,
+                        "settlement_id": line.settlement_id,
+                    })
+                else:
+                    # This is income from pass-through - find who it came from
+                    source_payee_id = None
+                    source_payee_name = None
+                    
+                    # Try to parse from description "Something (from PayeeName)"
+                    if line.description and "(from " in line.description:
+                        source_name = line.description.split("(from ")[-1].rstrip(")")
+                        source_payee_name = source_name
+                        # Try to find payee by name
+                        source_payee = db.query(models.Payee).filter(
+                            models.Payee.name.ilike(f"%{source_name}%"),
+                            models.Payee.carrier_id == load.carrier_id
+                        ).first()
+                        if source_payee:
+                            source_payee_id = source_payee.id
+                    
+                    regular_lines.append(line)  # Show as regular income for destination payee
+                    # But also track it's from pass-through
+            else:
+                regular_lines.append(line)
+        
         subtotal = round(sum(l.amount for l in payee_lines), 2)
         load_total += subtotal
         
@@ -201,7 +261,8 @@ def get_pay_ledger(load_id: int, token: dict = Depends(verify_token), db: Sessio
                 payable_to=payable_to,
                 driver_kind=driver_kind,
                 subtotal=subtotal,
-                lines=[LedgerLineResponse.model_validate(l) for l in payee_lines],
+                lines=[LedgerLineResponse.model_validate(l) for l in regular_lines],
+                pass_through_deductions=[PassThroughLineResponse(**pt) for pt in pass_through_lines],
             )
         )
 
@@ -261,6 +322,84 @@ def add_pay_line(
     return {
         "ok": True,
         "line": LedgerLineResponse.model_validate(line)
+    }
+
+
+@router.post("/{load_id}/add-pass-through-deduction")
+def add_pass_through_deduction(
+    load_id: int,
+    source_payee_id: int,
+    destination_payee_id: int,
+    amount: float,
+    description: str = None,
+    token: dict = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Add a pass-through deduction.
+    Creates TWO linked ledger lines:
+    1. Negative line for source payee (deduction)
+    2. Positive line for destination payee (payment)
+    """
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    
+    # Verify load exists
+    load = db.query(models.Load).filter(
+        models.Load.id == load_id,
+        models.Load.carrier_id == carrier_id
+    ).first()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+    
+    # Verify source payee exists
+    source_payee = db.query(models.Payee).filter(
+        models.Payee.id == source_payee_id,
+        models.Payee.carrier_id == carrier_id
+    ).first()
+    if not source_payee:
+        raise HTTPException(status_code=404, detail="Source payee not found")
+    
+    # Verify destination payee exists
+    dest_payee = db.query(models.Payee).filter(
+        models.Payee.id == destination_payee_id,
+        models.Payee.carrier_id == carrier_id
+    ).first()
+    if not dest_payee:
+        raise HTTPException(status_code=404, detail="Destination payee not found")
+    
+    # Ensure amount is positive
+    amount = abs(amount)
+    
+    # Create deduction line (negative) for source payee
+    deduction_line = models.SettlementLedgerLine(
+        load_id=load_id,
+        payee_id=source_payee_id,
+        category="pass_through",
+        description=f"{description or 'Pass-through'} → {dest_payee.name}",
+        amount=-amount
+    )
+    db.add(deduction_line)
+    db.flush()
+    
+    # Create payment line (positive) for destination payee
+    payment_line = models.SettlementLedgerLine(
+        load_id=load_id,
+        payee_id=destination_payee_id,
+        category="pass_through",
+        description=f"{description or 'Pass-through'} (from {source_payee.name})",
+        amount=amount
+    )
+    db.add(payment_line)
+    db.commit()
+    db.refresh(deduction_line)
+    db.refresh(payment_line)
+    
+    return {
+        "ok": True,
+        "deduction_line": LedgerLineResponse.model_validate(deduction_line),
+        "payment_line": LedgerLineResponse.model_validate(payment_line)
     }
 
 

@@ -41,6 +41,19 @@ type LedgerLine = {
   settlement_id?: number | null;
 };
 
+type PassThroughLine = {
+  id: number;
+  category: string;
+  description?: string | null;
+  amount: number;
+  destination_payee_id?: number | null;
+  destination_payee_name?: string | null;
+  source_payee_id?: number | null;
+  source_payee_name?: string | null;
+  locked_at?: string | null;
+  settlement_id?: number | null;
+};
+
 type PayeeLedger = {
   payee_id: number;
   payee_name: string;
@@ -49,6 +62,7 @@ type PayeeLedger = {
   driver_kind?: string | null;
   subtotal: number;
   lines: LedgerLine[];
+  pass_through_deductions: PassThroughLine[];
 };
 
 type LoadPayLedger = {
@@ -562,22 +576,53 @@ export default function AdminLoadDetail() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
+                        {/* Regular Line Items */}
                         {payee.lines.map((line) => (
                           <tr key={line.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm text-gray-900">
-                              {load.pickup_date || "12/19/25"}
+                              {load.pickup_date || new Date().toLocaleDateString()}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900">
-                              <span className="font-medium text-blue-600">{payee.payee_name}</span> {line.description || line.category}
+                              <span className="font-medium text-blue-600">{line.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                              {line.description && <span className="text-gray-600"> - {line.description}</span>}
                             </td>
                             <td className={`px-4 py-3 text-sm text-right font-semibold ${line.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                               {line.amount >= 0 ? "" : "-"}${Math.abs(line.amount).toFixed(2)}
                             </td>
                           </tr>
                         ))}
+                        
+                        {/* Pass-Through Deductions Section */}
+                        {payee.pass_through_deductions && payee.pass_through_deductions.length > 0 && (
+                          <>
+                            <tr className="bg-gray-100">
+                              <td colSpan={3} className="px-4 py-2 text-xs font-semibold text-gray-600 uppercase">
+                                Pass-Through Deductions
+                              </td>
+                            </tr>
+                            {payee.pass_through_deductions.map((pt) => (
+                              <tr key={pt.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm text-gray-900">
+                                  {new Date().toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900">
+                                  <span className="font-medium text-purple-600">{pt.description}</span>
+                                  {pt.destination_payee_name && (
+                                    <span className="text-gray-500 ml-2">→ {pt.destination_payee_name}</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right font-semibold text-rose-600">
+                                  -${Math.abs(pt.amount).toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                          </>
+                        )}
+                        
+                        {/* Subtotal Row */}
                         <tr className="bg-yellow-50">
                           <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
-                            TOTAL
+                            SUBTOTAL
                           </td>
                           <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
                             ${payee.subtotal.toFixed(2)}
@@ -591,6 +636,38 @@ export default function AdminLoadDetail() {
                 {payLedger && payLedger.by_payee.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     No driver payables yet
+                  </div>
+                )}
+                
+                {/* Load-Wide Total */}
+                {payLedger && payLedger.by_payee.length > 0 && (
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6 mt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Load-Wide Total Payables</h3>
+                        <p className="text-sm text-gray-600">Sum of all payee subtotals for this load</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-3xl font-bold text-gray-900">
+                          ${payLedger.load_pay_total.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {payLedger.by_payee.length} {payLedger.by_payee.length === 1 ? 'payee' : 'payees'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Optional: Breakdown by payee */}
+                    <div className="mt-4 pt-4 border-t border-blue-200">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {payLedger.by_payee.map((payee) => (
+                          <div key={payee.payee_id} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <div className="text-xs text-gray-600">{payee.payee_name}</div>
+                            <div className="text-lg font-semibold text-gray-900">${payee.subtotal.toFixed(2)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
