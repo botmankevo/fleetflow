@@ -42,14 +42,13 @@ services:
       ENABLE_GOOGLE_MAPS: ${ENABLE_GOOGLE_MAPS:-true}
     ports:
       - "8000:8000"
-    # Volume mount removed - using built image instead
-    # For dev mode with hot reload, uncomment the line below:
-    # volumes:
-    #   - ./backend:/app
+    # Volume mount enabled for development
+    volumes:
+      - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   frontend:
     build:
@@ -57,17 +56,15 @@ services:
       dockerfile: Dockerfile
     container_name: main-tms-frontend
     environment:
-      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000}
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
       BACKEND_URL: http://backend:8000
     ports:
       - "3001:3000"
-    # Volume mounts removed - using built image for production
-    # For dev mode, uncomment below:
-    # volumes:
-    #   - ./frontend:/app
-    #   - /app/node_modules
-    #   - /app/.next
-    command: npm start
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
 
 volumes:
   main_tms_pgdata:

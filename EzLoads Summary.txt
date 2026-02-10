@@ -1,0 +1,199 @@
+Here’s what we can actually determine and what you need for a deep AI-agent prompt to clone the functionality of ezloads.net (as a transportation management system + load board + logistics SaaS), without copying the visual design or proprietary code.
+
+🔍 What ezLoads is (functionality overview)
+
+ezLoads.net is a transportation management system (TMS) for trucking/logistics with features including:
+
+Load board & load management
+
+Dispatch board
+
+Driver app & driver status updates
+
+Document uploads (BOLs, PODs)
+
+Invoicing/payment processing
+
+Accounting & reporting
+
+Integrations (QuickBooks, ELD/telematics)
+
+AI-assisted rate confirmation parsing
+
+Fleet & driver compliance tracking
+
+Customer portals for tracking history and status
+
+External load booking integrations (e.g., Uber Freight)
+
+It’s not just a simple load listing — it’s a full cloud TMS SaaS product.
+
+⚙️ Likely Architecture
+
+We can’t definitively tell the technology stack just from the public site (no obvious indicators in source HTML). Tools like BuiltWith/Wappalyzer are usually needed for that kind of detection. But based on the product profile:
+
+Frontend
+
+Likely a JavaScript SPA (modern interactive app)
+
+Uses standard HTML/CSS/JS with heavy dynamic interaction (filters, boards)
+
+Could be built with frameworks like React, Vue, or Angular (unconfirmed without inspection tools)
+
+Backend
+
+Full SaaS backend handling auth, business logic, APIs
+
+Likely built with common web stacks (possible Node, Python, .NET, Ruby, PHP — not publicly confirmed)
+
+Data & Integrations
+
+Database storing users, loads, dispatches, docs
+
+Integrations with telematics, QuickBooks, load sources
+
+Because public tech detection isn’t available without a tool, we’ll focus on how to rebuild the backend API abstraction your clone will need.
+
+🧠 What You Should Extract From ezLoads’ Features
+
+This will inform the AI agent coding prompt:
+
+Authentication & Roles
+
+Admin, dispatcher, driver, shipper roles
+
+Secure authentication (JWT / session tokens)
+
+Core Entities
+
+Loads
+
+Users (dispatchers/carriers/shippers)
+
+Documents (BOL, POD, rate confirmations)
+
+Vehicles (fleet records)
+
+Invoices
+
+Tracking status
+
+Load Board / Search
+
+Full text & filters (origin, destination, weight, rate, date)
+
+Pagination API
+
+Booking interactions
+
+Dispatch & Driver Updates
+
+Assign loads
+
+Status updates
+
+Driver document upload
+
+Analytics & Reporting
+
+Profit & loss
+
+IFTA
+
+Accounting exports
+
+Integrations
+
+QuickBooks (OAuth + API sync)
+
+ELD telematics (GPS updates)
+
+Load sources like Uber Freight (API integration)
+
+All of that is generic SaaS logistics workflows — not design.
+
+🧠 AI-Agent Prompt (Starter)
+
+Here’s a ready-to-paste prompt you can feed into your AI agents (OpenAI, GPT-4o, Claude, etc.) to generate code and documentation for this project.
+
+✨ AI Prompt: Build the Logistics SaaS Backend
+You are an expert software architect and full-stack developer. I want a clean, modular backend API for a transportation management system (TMS) with a load board, dispatch board, driver & shipper portals, document uploads, and integrations.
+
+The backend should use Node.js + Express (or another modern framework like NestJS, Django, or ASP.NET Core), PostgreSQL as the database, and produce a RESTful JSON API.
+
+Define:
+
+1. **Database schema** for:
+   - Users (roles: admin, dispatcher, driver, shipper)
+   - Loads (origin, destination, weight, rate, status, dates)
+   - Documents (file metadata, type, load association)
+   - Vehicles/fleet
+   - Invoices
+   - Activity logs
+
+2. **API endpoints** with method, path, request body, response format, and necessary business logic:
+   - Auth: register, login (JWT), role middleware
+   - Loadboard: list loads, filter by criteria, pagination
+   - Load assignment for dispatch
+   - Upload document endpoints
+   - Driver status updates
+   - Reporting endpoints (profit/loss, IFTA)
+
+3. **Models and relationships** with constraints (foreign keys, indexes)
+
+4. **Sample API responses** for success/failure formats
+
+5. **Authentication & Authorization** rules (role-based access control)
+
+6. **Integrations**:
+   - QuickBooks sync outline (OAuth flow, invoice sync)
+   - ELD telematics API (webhook or polling model)
+   - Optional 3rd-party load source API schematic
+
+7. **Tests** structure (unit & integration) with example test cases
+
+Output code in modular files (models, routes, services) with clean architecture, comments, and a README.
+
+Don’t write UI code — this is backend only.
+
+🧠 AI Prompt: Frontend API Integration
+You are a senior full-stack developer. Create a frontend application (framework: Next.js or React) that connects to the API defined earlier.
+
+Define:
+
+1. Pages/screens:
+   - Login / register
+   - Loadboard (search & filter)
+   - Dispatch board
+   - Driver dashboard with status updates
+   - Document upload views
+   - Reporting dashboard
+
+2. API service module to communicate with the REST API:
+   - axios or fetch wrappers
+   - auth token handling
+
+3. State management (context or Redux)
+
+4. Example UI components (without styling), just functional JSX.
+
+5. Error handling design and auth redirects.
+
+Output scaffolded code with comments and example calls to the backend.
+
+🧠 AI Prompt: Documentation & Deployment
+Generate project documentation:
+
+1. ER diagram for the database
+2. API docs in OpenAPI/Swagger format
+3. Deployment guide (Docker, Kubernetes, environment variables)
+4. CI/CD pipeline file (GitHub Actions or GitLab CI)
+5. Security checklist
+
+📌 Summary
+
+ezLoads is a full SaaS TMS + load board, not just a simple load listing tool.
+
+We’re not copying code/design — we’re recreating the structure & workflows.
+
+Use the prompts above with your AI agents to generate a robust backend + API + docs.

@@ -1,0 +1,318 @@
+Below is exactly how to implement both in PostgreSQL + FastAPI + Next.js with clean domain rules and UI behavior.
+
+1) Recommendation #1 — Group “Drivers Payable” by Payee
+What this changes
+
+Instead of showing one “Drivers Payable: $X”, the load Billing tab shows:
+
+Payee A (Company Driver / Payable-To)
+
+Line items (+) pay
+
+Payee B (Equipment Owner / Additional Payee)
+
+Line items (+) pay
+
+Line items (−) pass-through deductions (e.g., subtract company driver wages)
+
+…and each payee section shows:
+
+Subtotal
+
+Load-wide totals (optional roll-up)
+
+Data model support (what to store)
+
+Your load pay engine must produce ledger lines with:
+
+payee_id (who gets paid)
+
+load_id (source load)
+
+amount (signed: + pay, − deduction)
+
+category (enum: base_pay, extra_stop, detention, lumper, pass_through, adjustment, etc.)
+
+description (human-readable label)
+
+This is already aligned with the screenshot behavior (multiple lines, including negative ones).
+
+API shape
+
+GET /loads/{id}/pay-ledger
+Returns:
+
+{
+  "load_id": "…",
+  "currency": "USD",
+  "by_payee": [
+    {
+      "payee_id": "…",
+      "payee_name": "Manuel Flores",
+      "payee_type": "person",
+      "lines": [
+        { "id": "…", "category": "base_pay", "description": "Freight % (25%)", "amount": 312.50 }
+      ],
+      "subtotal": 312.50
+    },
+    {
+      "payee_id": "…",
+      "payee_name": "Kevin Cox",
+      "payee_type": "company",
+      "lines": [
+        { "id": "…", "category": "base_pay", "description": "OP net freight (55%)", "amount": 687.50 },
+        { "id": "…", "category": "pass_through", "description": "Company driver wages pass-through", "amount": -312.50 }
+      ],
+      "subtotal": 375.00
+    }
+  ],
+  "load_pay_total": 687.50
+}
+
+
+Notes:
+
+load_pay_total can be:
+
+sum of positive lines, or
+
+sum of all payee subtotals, depending on your UX
+
+But the UI should always show per-payee subtotals to prevent confusion.
+
+Next.js UI (Billing tab)
+
+Render a section per payee:
+
+Payee header row (name/type, subtotal)
+
+Table of lines
+
+Optional “Add adjustment” button (creates a manual ledger line)
+
+This makes it crystal clear how pay breaks down.
+
+2) Recommendation #2 — Lock ledger lines once paid (and use adjustments)
+Problem this prevents
+
+If you recompute load pay after paying the settlement, you cannot mutate history.
+
+Rule: once a ledger line is included in a paid settlement, it becomes immutable.
+If something changes, you create adjustment ledger lines in a future period.
+
+Schema fields to add
+
+In settlement_ledger_lines:
+
+locked_at timestamp null
+
+locked_reason enum null (included_in_paid_settlement, exported, etc.)
+
+voided_at timestamp null (only allowed before lock)
+
+replaces_line_id uuid null (for correction trails)
+
+adjustment_group_id uuid null (ties multiple adjustment lines together)
+
+In payroll_settlements:
+
+status enum: draft, approved, paid, exported, voided
+
+paid_at
+
+exported_at
+
+lock_version int or updated_at (for optimistic concurrency)
+
+In a join table or direct FK:
+
+each ledger line should have settlement_id null once it’s included in a settlement draft
+
+then locked when settlement transitions to paid/exported
+
+State machine (server-enforced)
+
+LedgerLine status logic
+
+pending → included (settlement draft) → locked (settlement paid/exported)
+
+Allowed actions:
+
+✅ Recompute / delete / replace pending lines
+
+✅ Edit pending manual lines
+
+❌ Modify locked lines
+
+✅ Add new adjustment lines (signed amounts) that reference original
+
+Settlement transitions
+
+draft → approved → paid → exported (optional)
+
+When moving to paid:
+
+attach ledger lines
+
+set locked_at=now() on all included lines
+
+prevent further changes to the settlement lines
+
+Recompute logic with locks
+
+When a load changes, pay engine runs:
+
+Fetch existing ledger lines for that load.
+
+Split them into:
+
+unlocked lines (safe to delete and regenerate)
+
+locked lines (must not change)
+
+If locked lines exist and the recomputation would differ:
+
+create adjustment lines dated today (or next payroll period start)
+
+reference the old locked line(s) via replaces_line_id or adjustment_group_id
+
+do not touch locked lines
+
+This is the key mechanic that keeps you audit-proof.
+
+UX behavior
+
+On the Load Billing tab:
+
+Locked lines show a lock icon + tooltip “Paid in Settlement #123 (Jan 26–Feb 1)”
+
+If dispatcher edits the load after payment and pay changes:
+
+Billing tab shows “This change created an adjustment of +$X / −$Y in the next pay period.”
+
+On Payroll:
+
+Adjustments appear as separate lines with clear labeling:
+
+“Adjustment for Load 1049: freight % change”
+
+3) Payee-grouped settlements (ties both recs together cleanly)
+Payroll build UI
+
+Select pay period (weekly)
+
+For each payee:
+
+show all pending ledger lines in that range
+
+totals + included checkboxes (if you want manual inclusion)
+
+Create settlement draft → approve → mark paid
+
+Server endpoints
+
+POST /payroll/settlements (create draft for a payee + date range)
+
+POST /payroll/settlements/{id}/approve
+
+POST /payroll/settlements/{id}/pay
+
+POST /payroll/settlements/{id}/export (optional)
+
+4) “Pass-through wages” (how to implement like your screenshot)
+
+When there is:
+
+an equipment owner payee with % of freight (e.g., 55%)
+
+AND a company driver who is paid separately (e.g., 25% of freight)
+
+Then create:
+
+line for the company driver payee
+
+line for equipment owner base pay (their % of freight)
+
+− line for equipment owner pass-through wages (equal to company driver pay)
+
+This matches the “positive for driver + negative against equipment owner” behavior you saw.
+
+5) Concrete build tasks (FastAPI + Postgres + Next)
+Phase 1 — Schema + core services
+
+Alembic migrations for:
+
+payees, drivers, driver_documents
+
+loads, load_stops, load_charges
+
+settlement_ledger_lines (with lock fields)
+
+payroll_settlements
+
+CRUD endpoints for drivers + documents
+
+Load CRUD + stop/charges
+
+Phase 2 — Pay engine + ledger materialization
+
+POST /loads/{id}/recalculate-pay
+
+auto-trigger on:
+
+load rate changes
+
+driver assignment changes
+
+stop count changes
+
+charge changes
+
+lock-aware regeneration + adjustments
+
+Phase 3 — UI
+
+Drivers list + driver edit tabs
+
+Load edit modal + Billing tab:
+
+Invoice section
+
+Drivers Payable grouped by payee
+
+locked line display + “create adjustment” flow
+
+Phase 4 — Payroll settlement
+
+Settlement builder per payee
+
+Pay → lock lines
+
+Export hooks later (QB etc.)
+
+6) Drop-in “implementation prompt” updated with both recommendations
+
+Use this as your build directive inside FleetFlow:
+
+Implement Drivers/Loads/Driver Pay/Payroll in FleetFlow using:
+- PostgreSQL 15, FastAPI, Next.js
+- Ledger-first accounting
+
+Must-have behaviors:
+1) Load Billing shows Drivers Payable grouped by Payee:
+   - each payee has line items and a subtotal
+   - supports positive and negative lines (pass-through, deductions)
+2) Ledger locking:
+   - once a payroll settlement is marked paid/exported, its ledger lines are immutable
+   - recomputing a paid load must not modify locked lines; create adjustment ledger lines instead
+   - UI indicates locked lines and references the settlement
+
+Implement:
+- Tables: payees, drivers, driver_documents, driver_pay_profiles, driver_additional_payees,
+  recurring_settlement_items, loads, load_stops, load_charges,
+  settlement_ledger_lines (with locked_at, voided_at, replaces_line_id, adjustment_group_id),
+  payroll_settlements
+- Pay calculation engine that materializes ledger lines per load
+- Pass-through logic (company driver wages deducted from equipment owner settlement)
+- Payroll settlement workflow: draft → approved → paid → exported, with locking at paid/exported
+- API endpoints + Next.js UI for Drivers, Load Billing tab, Payroll Settlements

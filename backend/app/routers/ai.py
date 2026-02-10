@@ -240,13 +240,13 @@ async def get_ai_insights(
             icon="truck"
         ))
     
-    # Check for available drivers
-    available_drivers = db.query(Driver).filter(Driver.status == "Available").count()
+    # Check for available drivers (count total drivers since status field doesn't exist)
+    total_drivers = db.query(Driver).count()
     
-    if available_drivers > 5:
+    if total_drivers > 5:
         insights.append(AIInsight(
             title="Driver Capacity",
-            message=f"{available_drivers} drivers are currently available. Consider picking up new loads.",
+            message=f"{total_drivers} drivers in your fleet. Review driver assignments for optimization.",
             priority="medium",
             action_label="Browse Load Boards",
             action_url="/admin/loads",

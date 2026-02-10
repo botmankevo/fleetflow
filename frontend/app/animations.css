@@ -132,7 +132,7 @@
 }
 
 .hover-glow:hover {
-  box-shadow: 0 0 20px rgba(10, 191, 83, 0.4);
+  box-shadow: 0 0 20px rgba(0, 163, 255, 0.4);
 }
 
 /* Button effects */
@@ -196,8 +196,8 @@
 }
 
 .drag-over {
-  background-color: rgba(10, 191, 83, 0.1);
-  border: 2px dashed #0abf53;
+  background-color: rgba(0, 163, 255, 0.1);
+  border: 2px dashed #00A3FF;
 }
 
 /* Modal animations */
@@ -255,9 +255,9 @@
 .gradient-text {
   background: linear-gradient(
     45deg,
-    #0abf53,
-    #06d6a0,
-    #0abf53
+    #00A3FF,
+    #00D4FF,
+    #00A3FF
   );
   background-size: 200% 200%;
   -webkit-background-clip: text;
@@ -275,7 +275,7 @@
   transform: translateY(-8px) scale(1.02);
   box-shadow: 
     0 20px 40px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(10, 191, 83, 0.2);
+    0 0 0 1px rgba(0, 163, 255, 0.2);
 }
 
 /* Smooth scroll behavior */
@@ -285,7 +285,7 @@ html {
 
 /* Focus styles for accessibility */
 *:focus-visible {
-  outline: 2px solid #0abf53;
+  outline: 2px solid #00A3FF;
   outline-offset: 2px;
   border-radius: 4px;
 }

@@ -14,3 +14,9 @@ reportlab==4.0.7
 sqlalchemy==2.0.30
 alembic==1.13.2
 psycopg2-binary==2.9.11
+
+pandas>=2.0.0
+openpyxl>=3.0.0  # For Excel file support
+
+sendgrid>=6.10.0
+twilio>=8.0.0

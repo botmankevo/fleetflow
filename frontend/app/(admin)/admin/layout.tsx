@@ -3,8 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch, getToken } from "../../../lib/api";
-import { VerticalDock } from "../../../components/navigation/VerticalDock";
-import Header from "../../../components/Header";
+import { AppLayout } from "../../../components/layout/AppLayout";
 import AICopilot from "../../../components/AICopilot";
 import AICommandPalette from "../../../components/AICommandPalette";
 import { PWAInstallPrompt } from "../../../components/pwa-install-prompt";
@@ -50,20 +49,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <WebSocketProvider enabled={false}>
-      <div className="min-h-screen bg-background">
-        <VerticalDock />
-        <div className="pl-20">
-          <Header />
-          <main className="pt-20 p-4 lg:p-6">
-            <div className="mx-auto">
-              {children}
-            </div>
-          </main>
-        </div>
+      <AppLayout>
+        {children}
         <AICopilot />
         <AICommandPalette />
         <PWAInstallPrompt />
-      </div>
+      </AppLayout>
     </WebSocketProvider>
   );
 }

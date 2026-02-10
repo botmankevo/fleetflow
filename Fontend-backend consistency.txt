@@ -1,0 +1,49 @@
+You are acting as a senior full-stack engineer reviewing this codebase.
+
+Your task is to verify frontend ↔ backend API consistency.
+
+Instructions:
+
+Scan the frontend code and identify every API call (REST, GraphQL, fetch, axios, SDKs, hooks, services).
+
+For each call, extract:
+
+HTTP method
+
+Endpoint path
+
+Request payload shape
+
+Expected response shape
+
+Scan the backend and confirm that for every frontend call:
+
+A corresponding endpoint exists
+
+The HTTP method matches
+
+The route is mounted and reachable
+
+Auth, validation, and middleware are correctly applied
+
+If an endpoint is missing, incomplete, or mismatched, explicitly mark it as UNIMPLEMENTED.
+
+Produce an Endpoint Mapping Table with:
+
+Frontend file / location
+
+Method
+
+Path
+
+Backend file / handler
+
+Status (Implemented / Missing / Partial)
+
+Do not assume endpoints exist unless you can clearly identify them in backend code or API documentation.
+
+Conclude with:
+
+A list of missing or mismatched endpoints
+
+OR a confirmation that frontend and backend are fully aligned

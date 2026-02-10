@@ -33,6 +33,7 @@ export default function CustomerManagement() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
 
   useEffect(() => {
     loadCustomers();
@@ -85,21 +86,21 @@ export default function CustomerManagement() {
 
   if (loading) {
     return (
-      <main className="p-8 bg-slate-50 min-h-screen">
+      <main className="p-8 bg-background min-h-screen">
         <div className="text-center py-20">
           <div className="animate-spin h-12 w-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading customers...</p>
+          <p className="mt-4 text-muted-foreground">Loading customers...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="p-8 bg-slate-50 min-h-screen space-y-6">
+    <main className="p-8 bg-background min-h-screen space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">
             Customers
           </h1>
           <p className="text-slate-500 mt-1">
@@ -108,7 +109,7 @@ export default function CustomerManagement() {
         </div>
         <button
           onClick={handleAddCustomer}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all"
+          className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all"
         >
           + Add Customer
         </button>
@@ -146,7 +147,7 @@ export default function CustomerManagement() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-card p-4 rounded-xl border border shadow-sm">
         <div className="flex gap-4 items-center">
           <div className="flex-1">
             <input
@@ -154,7 +155,7 @@ export default function CustomerManagement() {
               placeholder="Search by name, MC#, or city..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div className="flex gap-2">
@@ -164,40 +165,73 @@ export default function CustomerManagement() {
                 onClick={() => setFilterType(type)}
                 className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
                   filterType === type
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 text-muted-foreground hover:bg-gray-200"
                 }`}
               >
                 {type.charAt(0).toUpperCase() + type.slice(1)}
               </button>
             ))}
           </div>
+          {/* View Toggle */}
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                viewMode === "kanban"
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Card View"
+            >
+              <span className="text-lg">📇</span>
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                viewMode === "list"
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="List View"
+            >
+              <span className="text-lg">📋</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Customer Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredCustomers.length === 0 ? (
-          <div className="col-span-full text-center py-20 bg-white rounded-xl border border-gray-200">
-            <div className="text-6xl mb-4">📭</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              No customers found
-            </h3>
-            <p className="text-gray-600">
-              Add your first customer to get started
-            </p>
-          </div>
-        ) : (
-          filteredCustomers.map((customer) => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              onEdit={handleEditCustomer}
-              onDelete={handleDeleteCustomer}
-            />
-          ))
-        )}
-      </div>
+      {/* Customer Cards Grid or List View */}
+      {viewMode === "kanban" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCustomers.length === 0 ? (
+            <div className="col-span-full text-center py-20 bg-card rounded-xl border border">
+              <div className="text-6xl mb-4">📭</div>
+              <h3 className="text-xl font-bold text-foreground mb-2">
+                No customers found
+              </h3>
+              <p className="text-muted-foreground">
+                Add your first customer to get started
+              </p>
+            </div>
+          ) : (
+            filteredCustomers.map((customer) => (
+              <CustomerCard
+                key={customer.id}
+                customer={customer}
+                onEdit={handleEditCustomer}
+                onDelete={handleDeleteCustomer}
+              />
+            ))
+          )}
+        </div>
+      ) : (
+        <CustomerListView
+          customers={filteredCustomers}
+          onEdit={handleEditCustomer}
+          onDelete={handleDeleteCustomer}
+        />
+      )}
 
       {/* Add/Edit Customer Modal */}
       {showModal && (
@@ -250,6 +284,121 @@ function StatCard({
   );
 }
 
+// Customer List View Component
+function CustomerListView({
+  customers,
+  onEdit,
+  onDelete,
+}: {
+  customers: Customer[];
+  onEdit: (customer: Customer) => void;
+  onDelete: (id: number) => void;
+}) {
+  if (customers.length === 0) {
+    return (
+      <div className="text-center py-20 bg-card rounded-xl border border">
+        <div className="text-6xl mb-4">📭</div>
+        <h3 className="text-xl font-bold text-foreground mb-2">
+          No customers found
+        </h3>
+        <p className="text-muted-foreground">Add your first customer to get started</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card rounded-xl border border shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-background border-b border">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Company
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                MC#
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Location
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Contact
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Loads
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Revenue
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {customers.map((customer) => (
+              <tr key={customer.id} className="hover:bg-background transition-colors">
+                <td className="px-6 py-4">
+                  <div className="font-semibold text-foreground">{customer.company_name}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                      customer.customer_type === "broker"
+                        ? "bg-purple-100 text-purple-800"
+                        : customer.customer_type === "shipper"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {customer.customer_type.toUpperCase()}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-muted-foreground">
+                  {customer.mc_number || "-"}
+                </td>
+                <td className="px-6 py-4 text-sm text-muted-foreground">
+                  {customer.city && customer.state
+                    ? `${customer.city}, ${customer.state}`
+                    : "-"}
+                </td>
+                <td className="px-6 py-4 text-sm text-muted-foreground">
+                  {customer.phone || customer.email || "-"}
+                </td>
+                <td className="px-6 py-4 text-sm font-semibold text-foreground">
+                  {customer.total_loads}
+                </td>
+                <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                  ${customer.total_revenue.toLocaleString()}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => onEdit(customer)}
+                      className="px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 transition-colors text-sm font-semibold"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => onDelete(customer.id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm font-semibold"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // Customer Card Component
 function CustomerCard({
   customer,
@@ -267,10 +416,10 @@ function CustomerCard({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-6">
+    <div className="bg-card rounded-xl border border shadow-sm hover:shadow-md transition-all p-6">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 className="text-lg font-bold text-gray-900 mb-1">
+          <h3 className="text-lg font-bold text-foreground mb-1">
             {customer.company_name}
           </h3>
           <span
@@ -283,7 +432,7 @@ function CustomerCard({
         </div>
       </div>
 
-      <div className="space-y-2 text-sm text-gray-600 mb-4">
+      <div className="space-y-2 text-sm text-muted-foreground mb-4">
         {customer.mc_number && (
           <p>
             <span className="font-semibold">MC#:</span> {customer.mc_number}
@@ -308,15 +457,15 @@ function CustomerCard({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4 pt-4 border-t border-gray-200">
+      <div className="grid grid-cols-2 gap-4 mb-4 pt-4 border-t border">
         <div>
-          <p className="text-xs text-gray-500">Total Loads</p>
-          <p className="text-lg font-bold text-gray-900">
+          <p className="text-xs text-muted-foreground">Total Loads</p>
+          <p className="text-lg font-bold text-foreground">
             {customer.total_loads}
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Total Revenue</p>
+          <p className="text-xs text-muted-foreground">Total Revenue</p>
           <p className="text-lg font-bold text-green-600">
             ${customer.total_revenue.toLocaleString()}
           </p>
@@ -326,7 +475,7 @@ function CustomerCard({
       <div className="flex gap-2">
         <button
           onClick={() => onEdit(customer)}
-          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+          className="flex-1 px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-semibold"
         >
           Edit
         </button>
@@ -381,17 +530,33 @@ function CustomerModal({
     setSaving(true);
 
     try {
+      // Clean form data - convert empty strings to null
+      const cleanedData = {
+        ...formData,
+        mc_number: formData.mc_number || null,
+        dot_number: formData.dot_number || null,
+        address: formData.address || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        zip_code: formData.zip_code || null,
+        phone: formData.phone || null,
+        email: formData.email || null,
+        notes: formData.notes || null,
+        credit_limit: formData.credit_limit || null,
+        default_rate: formData.default_rate || null,
+      };
+
       if (customer) {
         // Update existing
         await apiFetch(`/customers/${customer.id}`, {
           method: "PUT",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(cleanedData),
         });
       } else {
         // Create new
         await apiFetch("/customers/", {
           method: "POST",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(cleanedData),
         });
       }
       onSave();
@@ -405,14 +570,14 @@ function CustomerModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 my-8">
+      <div className="bg-card rounded-2xl shadow-2xl max-w-2xl w-full p-6 my-8">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-gray-900">
+          <h3 className="text-2xl font-bold text-foreground">
             {customer ? "Edit Customer" : "Add New Customer"}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
+            className="text-gray-400 hover:text-muted-foreground text-2xl"
           >
             ✕
           </button>
@@ -421,7 +586,7 @@ function CustomerModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Company Name *
               </label>
               <input
@@ -431,12 +596,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, company_name: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 MC Number
               </label>
               <input
@@ -445,12 +610,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, mc_number: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 DOT Number
               </label>
               <input
@@ -459,12 +624,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, dot_number: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Address
               </label>
               <input
@@ -473,12 +638,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, address: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 City
               </label>
               <input
@@ -487,12 +652,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, city: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 State
               </label>
               <input
@@ -501,12 +666,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, state: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Phone
               </label>
               <input
@@ -515,12 +680,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Email
               </label>
               <input
@@ -529,12 +694,12 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Customer Type
               </label>
               <select
@@ -542,7 +707,7 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, customer_type: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               >
                 <option value="broker">Broker</option>
                 <option value="shipper">Shipper</option>
@@ -551,7 +716,7 @@ function CustomerModal({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Payment Terms
               </label>
               <select
@@ -559,7 +724,7 @@ function CustomerModal({
                 onChange={(e) =>
                   setFormData({ ...formData, payment_terms: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               >
                 <option value="Net 15">Net 15</option>
                 <option value="Net 30">Net 30</option>
@@ -570,7 +735,7 @@ function CustomerModal({
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Notes
               </label>
               <textarea
@@ -579,28 +744,35 @@ function CustomerModal({
                   setFormData({ ...formData, notes: e.target.value })
                 }
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground bg-card"
               />
             </div>
           </div>
 
-          {/* Broker Verification */}
-          {formData.mc_number && (
-            <div className="mt-4">
+          {/* FMCSA Broker Verification - Always Show for Brokers */}
+          {(formData.customer_type === "broker" || formData.customer_type === "carrier") && (
+            <div className="col-span-2 border-t pt-4 mt-2">
+              <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                🔍 FMCSA Lookup
+                <span className="text-xs font-normal text-muted-foreground">
+                  (Enter MC# above and verify here)
+                </span>
+              </h4>
               <BrokerVerification
-                mcNumber={formData.mc_number}
+                mcNumber={formData.mc_number || ""}
                 onVerified={(data) => {
                   // Auto-fill data from FMCSA
-                  setFormData({
-                    ...formData,
-                    company_name: data.legal_name || formData.company_name,
-                    dot_number: data.dot_number || formData.dot_number,
-                    address:
-                      data.physical_address?.street || formData.address,
-                    city: data.physical_address?.city || formData.city,
-                    state: data.physical_address?.state || formData.state,
-                    phone: data.phone || formData.phone,
-                  });
+                  if (window.confirm("Auto-fill broker information from FMCSA? This will overwrite existing data.")) {
+                    setFormData({
+                      ...formData,
+                      company_name: data.legal_name || formData.company_name,
+                      dot_number: data.dot_number || formData.dot_number,
+                      address: data.physical_address?.street || formData.address,
+                      city: data.physical_address?.city || formData.city,
+                      state: data.physical_address?.state || formData.state,
+                      phone: data.phone || formData.phone,
+                    });
+                  }
                 }}
               />
             </div>
@@ -610,14 +782,14 @@ function CustomerModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              className="flex-1 px-4 py-2 bg-gray-200 text-foreground rounded-lg hover:bg-gray-300 transition-colors font-semibold"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50"
             >
               {saving ? "Saving..." : customer ? "Update" : "Create"}
             </button>

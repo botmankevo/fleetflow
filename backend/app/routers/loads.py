@@ -9,11 +9,14 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.schemas.loads import LoadCreate, LoadUpdate, LoadResponse
 from app.schemas.payroll import LoadPayLedgerResponse, PayeeLedgerResponse, LedgerLineResponse, PassThroughLineResponse
+from app.schemas.pod import DocumentExchangeItem
 from app import models
 from app.services.dropbox import DropboxService
 from pypdf import PdfReader
 from PIL import Image
 from app.services.pay_engine import recalc_load_pay
+from app.services.rate_con_ocr import RateConfirmationOCR
+import pdf2image
 
 router = APIRouter(prefix="/loads", tags=["loads"])
 
@@ -31,7 +34,12 @@ def list_loads(token: dict = Depends(verify_token), db: Session = Depends(get_db
             return []
         query = query.filter(models.Load.driver_id == token.get("driver_id"))
     
-    loads = query.order_by(models.Load.created_at.desc()).all()
+    from sqlalchemy.orm import joinedload
+    
+    loads = query.options(
+        joinedload(models.Load.driver),
+        joinedload(models.Load.customer)
+    ).order_by(models.Load.created_at.desc()).all()
     
     # Enhance each load with parsed address data
     result = []
@@ -42,7 +50,9 @@ def list_loads(token: dict = Depends(verify_token), db: Session = Depends(get_db
             'load_number': load.load_number,
             'status': load.status,
             'pickup_address': load.pickup_address,
+            'pickup_date': load.pickup_date.isoformat() if load.pickup_date else None,
             'delivery_address': load.delivery_address,
+            'delivery_date': load.delivery_date.isoformat() if load.delivery_date else None,
             'notes': load.notes,
             'driver_id': load.driver_id,
             'broker_name': load.broker_name,
@@ -51,7 +61,29 @@ def list_loads(token: dict = Depends(verify_token), db: Session = Depends(get_db
             'broker_rate': load.rate_amount,
             'created_at': load.created_at.isoformat() if load.created_at else None,
             'updated_at': None,
+            # Document attachments
+            'rc_document': load.rc_document,
+            'bol_document': load.bol_document,
+            'pod_document': load.pod_document,
+            'invoice_document': load.invoice_document,
+            'receipt_document': load.receipt_document,
+            'other_document': load.other_document,
         }
+        
+        # Add driver relationship
+        if load.driver:
+            load_dict['driver'] = {
+                'id': load.driver.id,
+                'name': load.driver.name
+            }
+        
+        # Add customer relationship
+        if load.customer:
+            load_dict['customer'] = {
+                'id': load.customer.id,
+                'company_name': load.customer.company_name,
+                'customer_type': load.customer.customer_type
+            }
         
         # Parse pickup address
         if load.pickup_address:
@@ -88,6 +120,54 @@ def get_load(load_id: int, token: dict = Depends(verify_token), db: Session = De
     if token.get("role") == "driver" and token.get("driver_id") and load.driver_id != token.get("driver_id"):
         raise HTTPException(status_code=403, detail="Access denied")
     return load
+
+
+@router.get("/{load_id}/documents", response_model=list[DocumentExchangeItem])
+def get_load_documents(load_id: int, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    """Get all accepted documents for a specific load"""
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+
+    # Verify load exists and user has access
+    load = db.query(models.Load).filter(models.Load.id == load_id, models.Load.carrier_id == carrier_id).first()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+    
+    if token.get("role") == "driver" and token.get("driver_id") and load.driver_id != token.get("driver_id"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get only accepted documents for this load
+    query = db.query(
+        models.DocumentExchange,
+        models.Driver
+    ).join(
+        models.Driver, models.DocumentExchange.driver_id == models.Driver.id
+    ).filter(
+        models.DocumentExchange.load_id == load_id,
+        models.DocumentExchange.status == "Accepted"
+    )
+
+    rows = query.order_by(models.DocumentExchange.created_at.desc()).all()
+    
+    results = []
+    for doc, driver in rows:
+        results.append({
+            "id": doc.id,
+            "date": doc.created_at.strftime("%Y-%m-%d") if doc.created_at else "",
+            "driver_name": driver.name,
+            "driver_id": driver.id,
+            "load_id": doc.load_id,
+            "load_number": load.load_number,
+            "type": doc.doc_type,
+            "attachment_url": doc.attachment_url,
+            "status": doc.status,
+            "notes": doc.notes,
+            "created_at": doc.created_at.isoformat() if doc.created_at else "",
+            "updated_at": doc.updated_at.isoformat() if doc.updated_at else "",
+        })
+    
+    return results
 
 
 @router.post("", response_model=LoadResponse)
@@ -556,3 +636,51 @@ def auto_create_load(
         ],
         "load_id": load.id,
     }
+
+
+@router.post("/parse-rate-con")
+async def parse_rate_con(
+    file: UploadFile = File(...),
+    token: dict = Depends(verify_token)
+):
+    """
+    FAST: Parse rate confirmation using direct PDF text extraction (no image conversion)
+    Falls back to OCR only if PDF text extraction fails
+    """
+    content = await file.read()
+    filename = file.filename.lower() if file.filename else "unknown"
+
+    try:
+        if filename.endswith(".pdf"):
+            # FAST METHOD: Extract text directly from PDF (no image conversion)
+            try:
+                reader = PdfReader(io.BytesIO(content))
+                raw_text = "\n".join([page.extract_text() or "" for page in reader.pages])
+                
+                if raw_text.strip():
+                    # Return raw text for client-side parsing
+                    return {"raw_data": raw_text}
+                else:
+                    # PDF has no text (scanned image), fallback to OCR
+                    print("PDF has no extractable text, using OCR fallback")
+                    raise ValueError("No text in PDF")
+            except Exception as pdf_err:
+                print(f"PDF text extraction failed: {pdf_err}, using OCR")
+                # Fallback to slow OCR method
+                images = pdf2image.convert_from_bytes(content)
+                if images:
+                    img_byte_arr = io.BytesIO()
+                    images[0].save(img_byte_arr, format='PNG')
+                    img_bytes = img_byte_arr.getvalue()
+                    ocr_service = RateConfirmationOCR()
+                    extracted_data = ocr_service.extract_from_image(img_bytes)
+                    return extracted_data
+        else:
+            # For images, use OCR
+            ocr_service = RateConfirmationOCR()
+            extracted_data = ocr_service.extract_from_image(content)
+            return extracted_data
+            
+    except Exception as e:
+        print(f"OCR Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse rate confirmation: {str(e)}")

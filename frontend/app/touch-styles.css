@@ -20,7 +20,7 @@ body {
 }
 
 .gradient-btn {
-  background: linear-gradient(135deg, #0abf53 0%, #089a43 100%);
+  background: linear-gradient(135deg, #00A3FF 0%, #0077CC 100%);
   color: white;
   font-weight: 700;
   transition: all 0.3s ease;
@@ -28,7 +28,7 @@ body {
 
 .gradient-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 10px 15px -3px rgba(10, 191, 83, 0.3);
+  box-shadow: 0 10px 15px -3px rgba(0, 163, 255, 0.3);
 }
 
 .card {
@@ -72,7 +72,7 @@ body {
 
 .input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(10, 191, 83, 0.2);
+  box-shadow: 0 0 0 2px rgba(0, 163, 255, 0.2);
 }
 
 .sidebar-link {
@@ -87,12 +87,12 @@ body {
 }
 
 .sidebar-link:hover {
-  background-color: rgba(10, 191, 83, 0.05);
+  background-color: rgba(0, 163, 255, 0.05);
   color: var(--primary);
 }
 
 .sidebar-link.active {
-  background-color: rgba(10, 191, 83, 0.1);
+  background-color: rgba(0, 163, 255, 0.1);
   color: var(--primary);
   font-weight: 600;
 }

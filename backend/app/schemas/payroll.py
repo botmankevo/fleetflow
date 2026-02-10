@@ -138,4 +138,23 @@ class RecurringSettlementItemResponse(BaseModel):
         from_attributes = True
 
 
+class DriverPayProfileCreate(BaseModel):
+    pay_type: str
+    rate: float
+    driver_kind: str
+
+
+class DriverAdditionalPayeeCreate(BaseModel):
+    payee_id: int
+    pay_rate_percent: float
+
+
+class RecurringSettlementItemCreate(BaseModel):
+    payee_id: int
+    item_type: str
+    amount: float
+    schedule: str = "weekly"
+    description: Optional[str] = None
+
+
 DriverDetailResponse.model_rebuild()

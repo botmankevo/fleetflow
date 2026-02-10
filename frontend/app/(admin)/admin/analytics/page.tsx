@@ -6,6 +6,12 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, AreaChart, Area
 } from "recharts";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState, CardSkeleton } from "@/components/ui/loading-state";
+import { ErrorBanner } from "@/components/ui/error-banner";
+import { DataExport, exportToCSV, exportToJSON } from "@/components/ui/data-export";
+import { RefreshCw, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const COLORS = ["#6366f1", "#7c3aed", "#22c55e", "#f59e0b", "#ef4444"];
 
@@ -43,16 +49,83 @@ export default function AnalyticsPage() {
         })();
     }, []);
 
-    if (loading) return <div className="p-8 text-slateSoft">Analyzing fleet data...</div>;
+    const handleExportRevenueCSV = () => {
+        exportToCSV(revenue, `revenue-analytics-${new Date().toISOString().split('T')[0]}.csv`);
+    };
+
+    const handleExportLoadStatusCSV = () => {
+        exportToCSV(loadStatus, `load-status-${new Date().toISOString().split('T')[0]}.csv`);
+    };
+
+    const handleExportAllJSON = () => {
+        const allData = {
+            loadStatus,
+            revenue,
+            equipmentStatus,
+            exportDate: new Date().toISOString()
+        };
+        exportToJSON([allData], `analytics-complete-${new Date().toISOString().split('T')[0]}.json`);
+    };
+
+    const refetchData = async () => {
+        setLoading(true);
+        try {
+            const token = getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+
+            const [ls, rev, eq] = await Promise.all([
+                apiFetch("/analytics/load-status", { headers }),
+                apiFetch("/analytics/revenue", { headers }),
+                apiFetch("/analytics/equipment-status", { headers }),
+            ]);
+
+            setLoadStatus(ls);
+            setRevenue(rev);
+            setEquipmentStatus(eq);
+            setError(null);
+        } catch (err) {
+            setError(getErrorMessage(err, "Failed to load analytics"));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <PageHeader
+                    title="Fleet Analytics"
+                    description="Real-time performance metrics and business intelligence"
+                    breadcrumbs={[{ label: 'Overview' }, { label: 'Analytics' }]}
+                />
+                <div className="p-6">
+                    <CardSkeleton count={3} />
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-8 pb-12">
-            <header>
-                <h1 className="text-3xl font-bold text-slate">Fleet Analytics</h1>
-                <p className="text-slateSoft mt-1">Real-time performance metrics and business intelligence.</p>
-            </header>
+        <div className="space-y-6">
+            <PageHeader
+                title="Fleet Analytics"
+                description="Real-time performance metrics and business intelligence"
+                breadcrumbs={[{ label: 'Overview' }, { label: 'Analytics' }]}
+                actions={
+                    <>
+                        <DataExport 
+                            onExportCSV={handleExportRevenueCSV}
+                            onExportJSON={handleExportAllJSON}
+                        />
+                        <Button onClick={refetchData} variant="outline" size="sm">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Refresh
+                        </Button>
+                    </>
+                }
+            />
 
-            {error && <div className="bg-error/10 text-error p-4 rounded-xl">{error}</div>}
+            {error && <ErrorBanner message={error} onRetry={refetchData} onDismiss={() => setError(null)} />}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Revenue Trend */}

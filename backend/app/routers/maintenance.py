@@ -81,3 +81,39 @@ def upload_receipt(maintenance_id: int, file: UploadFile = File(...), token: dic
     record.receipt_link = link
     db.commit()
     return {"link": link}
+
+
+@router.get("/scheduled", response_model=list[MaintenanceResponse])
+def list_scheduled_maintenance(token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    """Get all scheduled maintenance items"""
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    if token.get("role") == "driver":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get scheduled and in_progress maintenance
+    return db.query(models.Maintenance).filter(
+        models.Maintenance.carrier_id == carrier_id,
+        models.Maintenance.status.in_(["scheduled", "in_progress"])
+    ).order_by(models.Maintenance.scheduled_date).all()
+
+
+@router.get("/upcoming", response_model=list[MaintenanceResponse])
+def get_upcoming_maintenance(days: int = 7, token: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    """Get maintenance due within the next X days"""
+    from datetime import datetime, timedelta
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    if token.get("role") == "driver":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    end_date = datetime.utcnow() + timedelta(days=days)
+    
+    return db.query(models.Maintenance).filter(
+        models.Maintenance.carrier_id == carrier_id,
+        models.Maintenance.status == "scheduled",
+        models.Maintenance.scheduled_date <= end_date,
+        models.Maintenance.scheduled_date >= datetime.utcnow()
+    ).order_by(models.Maintenance.scheduled_date).all()

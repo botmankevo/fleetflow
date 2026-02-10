@@ -108,9 +108,10 @@ export function MaintenanceSchedulerWidget() {
             <Button
                 variant="outline"
                 className="w-full rounded-xl border-glass-border hover:bg-secondary/50 text-sm font-bold"
+                onClick={() => window.location.href = '/admin/maintenance'}
             >
                 <Calendar className="w-4 h-4 mr-2" />
-                View Full Calendar
+                View Full Schedule
             </Button>
         </GlassCard>
     );

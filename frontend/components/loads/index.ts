@@ -8,3 +8,5 @@ export { LoadFilters } from './LoadFilters';
 export type { LoadFilterValues } from './LoadFilters';
 
 export { LoadDetailModal } from './LoadDetailModal';
+
+export { DocumentUploadModal } from './DocumentUploadModal';

@@ -368,6 +368,57 @@ def record_payment(
     }
 
 
+@router.get("/{invoice_id}/pdf")
+def download_invoice_pdf(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate and download invoice PDF"""
+    from fastapi.responses import Response
+    from app.services.pdf_generator import generate_invoice_pdf
+    
+    carrier_id = current_user.carrier_id
+
+    # Get invoice
+    invoice = db.query(Invoice).filter(
+        and_(
+            Invoice.id == invoice_id,
+            Invoice.carrier_id == carrier_id
+        )
+    ).first()
+
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Get customer
+    customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
+    
+    # Get line items
+    line_items = db.query(InvoiceLineItem).filter(
+        InvoiceLineItem.invoice_id == invoice.id
+    ).all()
+
+    # Generate PDF
+    try:
+        pdf_bytes = generate_invoice_pdf(
+            invoice=invoice,
+            customer=customer,
+            line_items=line_items,
+            carrier_name="Cox Transport & Logistics"  # TODO: Get from settings
+        )
+        
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=invoice_{invoice.invoice_number}.pdf"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
+
+
 @router.get("/stats/summary")
 def get_invoice_stats(
     db: Session = Depends(get_db),

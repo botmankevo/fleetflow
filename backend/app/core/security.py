@@ -50,8 +50,25 @@ async def verify_token(
         )
 
 
+
+class UserToken:
+    """Wrapper to allow both object-like (user.id) and dict-like (user['id']) access"""
+    def __init__(self, data: Dict[str, Any]):
+        self._data = data
+        for key, value in data.items():
+            setattr(self, key, value)
+    
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+    
+    def __getitem__(self, key):
+        return self._data[key]
+    
+    def __contains__(self, key):
+        return key in self._data
+
 async def get_current_user(
     token_data: Dict[str, Any] = Depends(verify_token)
 ):
-    """Get current user from token - simplified version"""
-    return token_data
+    """Get current user from token - simplified version that supports object access"""
+    return UserToken(token_data)

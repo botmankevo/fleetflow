@@ -1,0 +1,158 @@
+/* ============================
+   MAIN TMS LOGO STYLES
+   ============================ */
+
+:root {
+  --main-black: #1f1f1f;
+  --ai-blue-1: #00d4ff;
+  --ai-blue-2: #0a3cff;
+}
+
+/* Wrapper */
+.main-tms-logo {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* MAIN text */
+.main-tms-text {
+  font-size: 1.15em;
+  letter-spacing: 0.02em;
+  color: var(--main-black);
+}
+
+/* AI arrow mark */
+.main-tms-ai {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.12em;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--ai-blue-1), var(--ai-blue-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Arrow stroke */
+.main-tms-ai::after {
+  content: "";
+  position: absolute;
+  left: -0.15em;
+  bottom: -0.25em;
+  width: 140%;
+  height: 0.18em;
+  background: linear-gradient(90deg, var(--ai-blue-2), var(--ai-blue-1));
+  border-radius: 999px;
+  transform: skewX(-18deg);
+}
+
+/* Glowing dot */
+.main-tms-dot {
+  width: 0.38em;
+  height: 0.38em;
+  background: #ffffff;
+  border-radius: 50%;
+  margin-left: 0.05em;
+  box-shadow:
+    0 0 6px var(--ai-blue-1),
+    0 0 14px var(--ai-blue-1),
+    0 0 24px rgba(0,212,255,.9);
+}
+
+/* TMS submark */
+.main-tms-sub {
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  margin-left: 0.3em;
+  color: #4a4a4a;
+  align-self: flex-end;
+}
+
+/* ============================
+   AI-ONLY LOGO (small spaces)
+   ============================ */
+
+.main-ai-only {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 900;
+  font-size: 1em;
+  line-height: 1;
+  position: relative;
+  background: linear-gradient(135deg, var(--ai-blue-1), var(--ai-blue-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.main-ai-only::after {
+  content: "";
+  position: absolute;
+  left: -0.15em;
+  bottom: -0.2em;
+  width: 130%;
+  height: 0.15em;
+  background: linear-gradient(90deg, var(--ai-blue-2), var(--ai-blue-1));
+  border-radius: 999px;
+  transform: skewX(-18deg);
+}
+
+/* ============================
+   RESPONSIVE / MOBILE VARIANTS
+   ============================ */
+
+@media (max-width: 640px) {
+  .main-tms-logo {
+    font-size: 0.9em;
+  }
+  
+  .main-tms-ai::after {
+    height: 0.15em;
+  }
+  
+  .main-tms-dot {
+    width: 0.32em;
+    height: 0.32em;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --main-black: #ffffff;
+  }
+  
+  .main-tms-text {
+    color: var(--main-black);
+  }
+  
+  .main-tms-sub {
+    color: #a0a0a0;
+  }
+}
+
+/* Animation on hover (optional) */
+.main-tms-logo:hover .main-tms-dot {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 6px var(--ai-blue-1),
+      0 0 14px var(--ai-blue-1),
+      0 0 24px rgba(0,212,255,.9);
+  }
+  50% {
+    box-shadow:
+      0 0 10px var(--ai-blue-1),
+      0 0 20px var(--ai-blue-1),
+      0 0 35px rgba(0,212,255,1);
+  }
+}

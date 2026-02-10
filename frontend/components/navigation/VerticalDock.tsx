@@ -62,6 +62,48 @@ const navigationItems = [
     color: 'text-emerald-500',
   },
   {
+    title: 'Customers',
+    href: '/admin/customers',
+    icon: Users,
+    color: 'text-blue-400',
+  },
+  {
+    title: 'Vendors',
+    href: '/admin/vendors',
+    icon: FileText,
+    color: 'text-indigo-400',
+  },
+  {
+    title: 'Expenses',
+    href: '/admin/expenses',
+    icon: DollarSign,
+    color: 'text-red-400',
+  },
+  {
+    title: 'IFTA',
+    href: '/admin/ifta',
+    icon: FileText,
+    color: 'text-yellow-400',
+  },
+  {
+    title: 'Safety',
+    href: '/admin/safety',
+    icon: FileText,
+    color: 'text-orange-400',
+  },
+  {
+    title: 'Tolls',
+    href: '/admin/tolls',
+    icon: DollarSign,
+    color: 'text-purple-400',
+  },
+  {
+    title: 'Docs Exchange',
+    href: '/admin/docs-exchange',
+    icon: FileText,
+    color: 'text-cyan-500',
+  },
+  {
     title: 'Settings',
     href: '/admin/settings',
     icon: Settings,

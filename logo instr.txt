@@ -1,0 +1,232 @@
+I’ll give you a clean, production-ready script that makes “Main Tms” render exactly like your logo, and also lets you use the standalone “AI” mark (the arrow + glow dot) anywhere a small logo is appropriate.
+
+Below is everything you need. You can hand this straight to a dev or drop it in yourself.
+
+What this solution does
+
+✅ Replaces every instance of Main Tms with a styled logo component
+✅ Matches your actual logo look (black text + blue gradient AI arrow)
+✅ Uses:
+
+Full logo style when there’s room
+
+AI-only mark automatically in tight spaces (or manually if you want)
+✅ Works on static + dynamic content (React, Vue, SPA, CMS, etc.)
+
+1️⃣ CSS — paste once, site-wide
+/* ============================
+   MAIN TMS LOGO STYLES
+   ============================ */
+
+:root {
+  --main-black: #1f1f1f;
+  --ai-blue-1: #00d4ff;
+  --ai-blue-2: #0a3cff;
+}
+
+/* Wrapper */
+.main-tms-logo {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* MAIN text */
+.main-tms-text {
+  font-size: 1.15em;
+  letter-spacing: 0.02em;
+  color: var(--main-black);
+}
+
+/* AI arrow mark */
+.main-tms-ai {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.12em;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--ai-blue-1), var(--ai-blue-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Arrow stroke */
+.main-tms-ai::after {
+  content: "";
+  position: absolute;
+  left: -0.15em;
+  bottom: -0.25em;
+  width: 140%;
+  height: 0.18em;
+  background: linear-gradient(90deg, var(--ai-blue-2), var(--ai-blue-1));
+  border-radius: 999px;
+  transform: skewX(-18deg);
+}
+
+/* Glowing dot */
+.main-tms-dot {
+  width: 0.38em;
+  height: 0.38em;
+  background: #ffffff;
+  border-radius: 50%;
+  margin-left: 0.05em;
+  box-shadow:
+    0 0 6px var(--ai-blue-1),
+    0 0 14px var(--ai-blue-1),
+    0 0 24px rgba(0,212,255,.9);
+}
+
+/* TMS submark */
+.main-tms-sub {
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  margin-left: 0.3em;
+  color: #4a4a4a;
+  align-self: flex-end;
+}
+
+/* ============================
+   AI-ONLY LOGO (small spaces)
+   ============================ */
+
+.main-ai-only {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 900;
+  font-size: 1em;
+  background: linear-gradient(135deg, var(--ai-blue-1), var(--ai-blue-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+}
+
+.main-ai-only::after {
+  content: "";
+  position: absolute;
+  left: -0.15em;
+  bottom: -0.25em;
+  width: 120%;
+  height: 0.18em;
+  background: linear-gradient(90deg, var(--ai-blue-2), var(--ai-blue-1));
+  border-radius: 999px;
+  transform: skewX(-18deg);
+}
+
+2️⃣ JavaScript — paste before </body>
+
+This script:
+
+Finds all text nodes containing Main Tms
+
+Replaces them with the styled logo
+
+Handles dynamic page updates
+
+Automatically swaps to AI-only logo in tight containers
+
+<script>
+(() => {
+  const TARGET = "Main Tms";
+
+  function createFullLogo() {
+    const wrap = document.createElement("span");
+    wrap.className = "main-tms-logo";
+
+    wrap.innerHTML = `
+      <span class="main-tms-text">MAIN</span>
+      <span class="main-tms-ai">
+        AI
+        <span class="main-tms-dot"></span>
+      </span>
+      <span class="main-tms-sub">TMS</span>
+    `;
+    return wrap;
+  }
+
+  function createAILogo() {
+    const ai = document.createElement("span");
+    ai.className = "main-ai-only";
+    ai.textContent = "AI";
+    return ai;
+  }
+
+  function shouldUseAIOnly(node) {
+    const parent = node.parentElement;
+    if (!parent) return false;
+    return parent.offsetWidth > 0 && parent.offsetWidth < 140;
+  }
+
+  function replaceNode(textNode) {
+    const text = textNode.nodeValue;
+    if (!text || !text.includes(TARGET)) return;
+
+    const parent = textNode.parentNode;
+    if (!parent || ["SCRIPT","STYLE","NOSCRIPT"].includes(parent.nodeName)) return;
+
+    const parts = text.split(TARGET);
+    const frag = document.createDocumentFragment();
+
+    parts.forEach((part, i) => {
+      if (part) frag.appendChild(document.createTextNode(part));
+      if (i < parts.length - 1) {
+        frag.appendChild(
+          shouldUseAIOnly(textNode) ? createAILogo() : createFullLogo()
+        );
+      }
+    });
+
+    parent.replaceChild(frag, textNode);
+  }
+
+  function scan(root = document.body) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) {
+      if (walker.currentNode.nodeValue.includes(TARGET)) {
+        nodes.push(walker.currentNode);
+      }
+    }
+    nodes.forEach(replaceNode);
+  }
+
+  // Initial scan
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => scan());
+  } else {
+    scan();
+  }
+
+  // Watch for dynamic changes
+  new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      m.addedNodes.forEach(n => {
+        if (n.nodeType === 3) replaceNode(n);
+        if (n.nodeType === 1) scan(n);
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+</script>
+
+Optional: Force AI-only logo manually
+
+Anywhere you want just the AI mark, drop:
+
+<span class="main-ai-only">AI</span>
+
+
+Perfect for:
+
+Navbar icons
+
+Footer badges
+
+Buttons
+
+Mobile headers
+
+Favicons (SVG export)

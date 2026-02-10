@@ -1,10 +1,11 @@
 import "./globals.css";
+import "./logo-styles.css";
 
 export const metadata = {
   title: "MAIN TMS",
   description: "Modern Transportation Management System",
   manifest: "/manifest.json",
-  themeColor: "#0abf53",
+  themeColor: "#00A3FF",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

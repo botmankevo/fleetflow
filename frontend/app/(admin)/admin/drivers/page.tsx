@@ -1,283 +1,316 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
-import ImportModal from "../../../../components/ImportModal";
+import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 
-const TABS = ["Pay rates", "Scheduled payments/deductions", "Additional payee", "Notes", "Driver App"] as const;
-
-type Driver = {
+interface Driver {
   id: number;
-  name: string;
-  email?: string | null;
-  phone?: string | null;
-  pay_profile?: { pay_type: string; rate: number; driver_kind: string } | null;
-  payee?: { name: string } | null;
-};
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+  documents?: any[];
+  cdl_expiry?: string;
+  medical_card_expiry?: string;
+}
 
-type DriverDetail = Driver & {
-  documents: {
-    id: number;
-    doc_type: string;
-    status: string;
-    expires_at?: string | null;
-    attachment_url?: string | null;
-  }[];
-  additional_payees: {
-    id: number;
-    pay_rate_percent: number;
-    payee: { name: string; payee_type: string };
-  }[];
-  recurring_items: {
-    id: number;
-    item_type: string;
-    amount: number;
-    schedule: string;
-    next_date?: string | null;
-    description?: string | null;
-  }[];
-};
+interface DocumentStatus {
+  total: number;
+  active: number;
+  expired: number;
+  expiring_soon: number;
+  missing: number;
+}
 
-export default function AdminDriversPage() {
+export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [activeDriver, setActiveDriver] = useState<DriverDetail | null>(null);
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Pay rates");
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "compliant" | "expiring" | "non-compliant">("all");
 
   useEffect(() => {
-    fetchDrivers();
+    loadDrivers();
   }, []);
 
-  async function fetchDrivers() {
+  const loadDrivers = async () => {
     try {
-      const token = getToken();
-      const res = await apiFetch("/drivers", {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      setDrivers(res);
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to load drivers"));
+      const data = await apiFetch("/drivers/");
+      setDrivers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load drivers:", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  async function openDriver(driverId: number) {
-    try {
-      const token = getToken();
-      const res = await apiFetch(`/payroll/drivers/${driverId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      setActiveDriver(res);
-      setActiveTab("Pay rates");
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to load driver"));
+  const getDriverDocStatus = (driver: Driver): DocumentStatus => {
+    const REQUIRED_DOCS = ["CDL", "Medical Card", "Drug Test", "MVR", "Application"];
+    const docs = driver.documents || [];
+    
+    let expired = 0;
+    let expiring_soon = 0;
+    let active = 0;
+    let missing = 0;
+
+    // Check CDL
+    if (driver.cdl_expiry) {
+      const daysUntil = Math.floor((new Date(driver.cdl_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (daysUntil < 0) expired++;
+      else if (daysUntil <= 30) expiring_soon++;
+      else active++;
+    } else {
+      missing++;
     }
+
+    // Check Medical Card
+    if (driver.medical_card_expiry) {
+      const daysUntil = Math.floor((new Date(driver.medical_card_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (daysUntil < 0) expired++;
+      else if (daysUntil <= 30) expiring_soon++;
+      else active++;
+    } else {
+      missing++;
+    }
+
+    // Check other docs
+    REQUIRED_DOCS.slice(2).forEach(docType => {
+      const doc = docs.find(d => d.doc_type === docType);
+      if (!doc) {
+        missing++;
+      } else if (doc.expires_at) {
+        const daysUntil = Math.floor((new Date(doc.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        if (daysUntil < 0) expired++;
+        else if (daysUntil <= 30) expiring_soon++;
+        else active++;
+      } else {
+        active++;
+      }
+    });
+
+    return {
+      total: REQUIRED_DOCS.length,
+      active,
+      expired,
+      expiring_soon,
+      missing
+    };
+  };
+
+  const getComplianceStatus = (docStatus: DocumentStatus) => {
+    if (docStatus.expired > 0) return "non-compliant";
+    if (docStatus.expiring_soon > 0 || docStatus.missing > 0) return "expiring";
+    return "compliant";
+  };
+
+  const filteredDrivers = drivers.filter(driver => {
+    if (filter === "all") return true;
+    const docStatus = getDriverDocStatus(driver);
+    const status = getComplianceStatus(docStatus);
+    return status === filter;
+  });
+
+  const stats = {
+    total: drivers.length,
+    compliant: drivers.filter(d => getComplianceStatus(getDriverDocStatus(d)) === "compliant").length,
+    expiring: drivers.filter(d => getComplianceStatus(getDriverDocStatus(d)) === "expiring").length,
+    nonCompliant: drivers.filter(d => getComplianceStatus(getDriverDocStatus(d)) === "non-compliant").length,
+  };
+
+  if (loading) {
+    return (
+      <main className="p-8 bg-background min-h-screen">
+        <div className="text-center py-20">
+          <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading drivers...</p>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="p-6 space-y-6">
+    <main className="p-8 bg-background min-h-screen space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl text-gold">Drivers</h1>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setShowImportModal(true)}
-            className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-all flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Import
-          </button>
-          <button className="btn">New</button>
-        </div>
+        <h1 className="text-3xl font-bold text-foreground">Drivers</h1>
+        <button className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg">
+          + Add Driver
+        </button>
       </div>
-      {error && <div className="text-red-400 text-sm">{error}</div>}
 
-      <section className="card">
-        <div className="grid grid-cols-7 gap-4 text-xs text-slate border-b border-white/10 pb-2">
-          <div>Name</div>
-          <div>Type</div>
-          <div>Status</div>
-          <div>Phone</div>
-          <div>Email</div>
-          <div>Payable To</div>
-          <div>Actions</div>
-        </div>
-        <div className="divide-y divide-white/5">
-          {drivers.map((driver) => (
-            <div key={driver.id} className="grid grid-cols-7 gap-4 py-3 text-sm">
-              <div className="text-emerald-200 font-semibold">{driver.name}</div>
-              <div className="text-slate">
-                {driver.pay_profile?.driver_kind === "owner_operator" ? "Own" : "Drv"}
-              </div>
-              <div className="text-emerald-300">Hired</div>
-              <div className="text-slate">{driver.phone || "-"}</div>
-              <div className="text-slate">{driver.email || "-"}</div>
-              <div className="text-slate">{driver.payee?.name || driver.name}</div>
-              <div>
-                <button className="btn" onClick={() => openDriver(driver.id)}>Edit</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard
+          icon="👥"
+          label="Total Drivers"
+          value={stats.total.toString()}
+          color="primary"
+          onClick={() => setFilter("all")}
+          active={filter === "all"}
+        />
+        <StatCard
+          icon="✅"
+          label="Compliant"
+          value={stats.compliant.toString()}
+          color="success"
+          onClick={() => setFilter("compliant")}
+          active={filter === "compliant"}
+        />
+        <StatCard
+          icon="⚠️"
+          label="Expiring Soon"
+          value={stats.expiring.toString()}
+          color="warning"
+          onClick={() => setFilter("expiring")}
+          active={filter === "expiring"}
+        />
+        <StatCard
+          icon="❌"
+          label="Non-Compliant"
+          value={stats.nonCompliant.toString()}
+          color="destructive"
+          onClick={() => setFilter("non-compliant")}
+          active={filter === "non-compliant"}
+        />
+      </div>
 
-      {activeDriver && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Edit Driver</h2>
-              <button className="text-slate-500" onClick={() => setActiveDriver(null)}>
-                X
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <section className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-slate">Name</label>
-                  <div className="input w-full">{activeDriver.name}</div>
-                </div>
-                <div>
-                  <label className="text-xs text-slate">Payable to</label>
-                  <div className="input w-full">{activeDriver.payee?.name || activeDriver.name}</div>
-                </div>
-                <div>
-                  <label className="text-xs text-slate">Phone</label>
-                  <div className="input w-full">{activeDriver.phone || "-"}</div>
-                </div>
-                <div>
-                  <label className="text-xs text-slate">Email</label>
-                  <div className="input w-full">{activeDriver.email || "-"}</div>
-                </div>
-              </section>
+      {/* Drivers Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredDrivers.map(driver => (
+          <DriverCard key={driver.id} driver={driver} docStatus={getDriverDocStatus(driver)} />
+        ))}
+      </div>
 
-              <section className="space-y-3">
-                <h3 className="text-sm font-semibold">Documents</h3>
-                <div className="space-y-2">
-                  {activeDriver.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between border border-slate-200 rounded-lg p-3 text-xs">
-                      <div>
-                        <div className="font-semibold">{doc.doc_type}</div>
-                        <div className="text-slate">{doc.status}</div>
-                      </div>
-                      <div className="text-slate">{doc.expires_at ? `exp. ${doc.expires_at.split("T")[0]}` : ""}</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <div className="flex gap-3 border-b border-slate-200 text-xs">
-                  {TABS.map((tab) => (
-                    <button
-                      key={tab}
-                      className={`px-3 py-2 ${activeTab === tab ? "text-emerald-600 border-b-2 border-emerald-500" : "text-slate-500"}`}
-                      onClick={() => setActiveTab(tab)}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-                <div className="border border-slate-200 rounded-b-lg p-4 text-sm">
-                  {activeTab === "Pay rates" && (
-                    <div className="space-y-3">
-                      <div className="text-xs text-slate">Driver type</div>
-                      <div className="text-sm font-semibold">
-                        {activeDriver.pay_profile?.driver_kind === "owner_operator" ? "Owner operator" : "Company driver"}
-                      </div>
-                      <div className="text-xs text-slate">Pay rate</div>
-                      <div className="text-sm font-semibold">
-                        {activeDriver.pay_profile?.pay_type} {activeDriver.pay_profile?.rate}%
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === "Scheduled payments/deductions" && (
-                    <div className="space-y-2">
-                      {activeDriver.recurring_items.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between text-xs border border-slate-200 rounded-lg p-3">
-                          <div>
-                            <div className="font-semibold">{item.description || item.item_type}</div>
-                            <div className="text-slate">{item.schedule}</div>
-                          </div>
-                          <div className={item.amount >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                            {item.amount >= 0 ? "+" : ""}${item.amount.toFixed(2)}
-                          </div>
-                        </div>
-                      ))}
-                      {activeDriver.recurring_items.length === 0 && (
-                        <div className="text-xs text-slate">No recurring items.</div>
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === "Additional payee" && (
-                    <div className="space-y-2">
-                      {activeDriver.additional_payees.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between text-xs border border-slate-200 rounded-lg p-3">
-                          <div>
-                            <div className="font-semibold">{item.payee.name}</div>
-                            <div className="text-slate">{item.payee.payee_type}</div>
-                          </div>
-                          <div className="text-emerald-600">{item.pay_rate_percent}%</div>
-                        </div>
-                      ))}
-                      {activeDriver.additional_payees.length === 0 && (
-                        <div className="text-xs text-slate">No additional payees.</div>
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === "Notes" && (
-                    <div className="text-xs text-slate">Copart, IAA, Central</div>
-                  )}
-
-                  {activeTab === "Driver App" && (
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-slate">Invite accepted on 02/11/25</div>
-                      <button className="btn">Send App Invite</button>
-                    </div>
-                  )}
-                </div>
-              </section>
-            </div>
-            <div className="p-4 border-t border-slate-200 flex justify-end gap-3">
-              <button className="btn" onClick={() => setActiveDriver(null)}>Close</button>
-              <button className="btn">Save</button>
-            </div>
-          </div>
+      {filteredDrivers.length === 0 && (
+        <div className="text-center py-20 bg-card rounded-xl border">
+          <div className="text-6xl mb-4">📭</div>
+          <h3 className="text-xl font-bold text-foreground mb-2">No drivers found</h3>
+          <p className="text-muted-foreground">
+            {filter !== "all" ? `No ${filter} drivers` : "Add your first driver to get started"}
+          </p>
         </div>
       )}
-
-      <ImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        title="Import Drivers"
-        entityType="drivers"
-        onImport={handleImportDrivers}
-      />
     </main>
   );
 }
 
-async function handleImportDrivers(file: File): Promise<void> {
-  const formData = new FormData();
-  formData.append("file", file);
-  
-  const token = getToken();
-  const response = await fetch("http://localhost:8000/imports/drivers", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
+function StatCard({ icon, label, value, color, onClick, active }: any) {
+  const colors = {
+    primary: "bg-primary/10 text-primary border-primary/20",
+    success: "bg-success/10 text-success border-success/20",
+    warning: "bg-warning/10 text-warning border-warning/20",
+    destructive: "bg-destructive/10 text-destructive border-destructive/20",
+  };
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Import failed");
-  }
+  return (
+    <button
+      onClick={onClick}
+      className={`p-6 rounded-xl border-2 transition-all hover:shadow-lg ${
+        active ? colors[color as keyof typeof colors] + " ring-2 ring-offset-2 ring-" + color : "bg-card border hover:border-primary/20"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-3xl">{icon}</span>
+        <span className="text-3xl font-bold">{value}</span>
+      </div>
+      <p className="text-sm font-semibold opacity-75">{label}</p>
+    </button>
+  );
+}
 
-  // Refresh the drivers list after successful import
-  window.location.reload();
+function DriverCard({ driver, docStatus }: { driver: Driver; docStatus: DocumentStatus }) {
+  const name = driver.name || `${driver.first_name || ""} ${driver.last_name || ""}`.trim() || "Unknown Driver";
+  const complianceStatus = docStatus.expired > 0 ? "non-compliant" : docStatus.expiring_soon > 0 || docStatus.missing > 0 ? "expiring" : "compliant";
+
+  const statusColors = {
+    compliant: "bg-success/10 text-success border-success/20",
+    expiring: "bg-warning/10 text-warning border-warning/20",
+    "non-compliant": "bg-destructive/10 text-destructive border-destructive/20",
+  };
+
+  const statusIcons = {
+    compliant: "✅",
+    expiring: "⚠️",
+    "non-compliant": "❌",
+  };
+
+  return (
+    <div className="bg-card border rounded-xl p-6 hover:shadow-lg transition-all">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-foreground">{name}</h3>
+          <p className="text-sm text-muted-foreground">{driver.email || "No email"}</p>
+        </div>
+        <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColors[complianceStatus]}`}>
+          {statusIcons[complianceStatus]} {complianceStatus.replace("-", " ").toUpperCase()}
+        </span>
+      </div>
+
+      {/* Document Status */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Documents:</span>
+          <span className="font-semibold text-foreground">
+            {docStatus.active + docStatus.expiring_soon}/{docStatus.total}
+          </span>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+          <div className="h-full flex">
+            {docStatus.active > 0 && (
+              <div className="bg-success" style={{ width: `${(docStatus.active / docStatus.total) * 100}%` }} />
+            )}
+            {docStatus.expiring_soon > 0 && (
+              <div className="bg-warning" style={{ width: `${(docStatus.expiring_soon / docStatus.total) * 100}%` }} />
+            )}
+            {docStatus.expired > 0 && (
+              <div className="bg-destructive" style={{ width: `${(docStatus.expired / docStatus.total) * 100}%` }} />
+            )}
+          </div>
+        </div>
+
+        {/* Status Breakdown */}
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          {docStatus.active > 0 && (
+            <div className="text-center">
+              <div className="font-bold text-success">{docStatus.active}</div>
+              <div className="text-muted-foreground">Active</div>
+            </div>
+          )}
+          {docStatus.expiring_soon > 0 && (
+            <div className="text-center">
+              <div className="font-bold text-warning">{docStatus.expiring_soon}</div>
+              <div className="text-muted-foreground">Expiring</div>
+            </div>
+          )}
+          {docStatus.expired > 0 && (
+            <div className="text-center">
+              <div className="font-bold text-destructive">{docStatus.expired}</div>
+              <div className="text-muted-foreground">Expired</div>
+            </div>
+          )}
+          {docStatus.missing > 0 && (
+            <div className="text-center">
+              <div className="font-bold text-muted-foreground">{docStatus.missing}</div>
+              <div className="text-muted-foreground">Missing</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2 mt-4 pt-4 border-t">
+        <button className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-semibold">
+          View Details
+        </button>
+        {complianceStatus !== "compliant" && (
+          <button className="px-3 py-2 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 transition-colors text-sm font-semibold">
+            Update Docs
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }

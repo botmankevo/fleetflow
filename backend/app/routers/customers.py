@@ -85,30 +85,7 @@ class CustomerResponse(BaseModel):
 from sqlalchemy import Column, Integer, String, Float, Boolean, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-
-
-class Customer(Base):
-    __tablename__ = "customers"
-
-    id = Column(Integer, primary_key=True, index=True)
-    carrier_id = Column(Integer, ForeignKey("carriers.id"), nullable=False, index=True)
-    company_name = Column(String(200), nullable=False, index=True)
-    mc_number = Column(String(50), nullable=True)
-    dot_number = Column(String(50), nullable=True)
-    address = Column(Text, nullable=True)
-    city = Column(String(100), nullable=True)
-    state = Column(String(20), nullable=True)
-    zip_code = Column(String(20), nullable=True)
-    phone = Column(String(50), nullable=True)
-    email = Column(String(200), nullable=True)
-    payment_terms = Column(String(50), default="Net 30")
-    credit_limit = Column(Float, nullable=True)
-    default_rate = Column(Float, nullable=True)
-    notes = Column(Text, nullable=True)
-    customer_type = Column(String(20), default="broker")  # broker, shipper, carrier
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+from app.models import Customer
 
 
 @router.post("/", response_model=CustomerResponse)
@@ -146,7 +123,7 @@ def create_customer(
 @router.get("/", response_model=List[CustomerResponse])
 def list_customers(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 1000,  # Increased from 100 to 1000
     search: Optional[str] = None,
     customer_type: Optional[str] = None,
     is_active: Optional[bool] = None,

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "../lib/utils";
 import { 
   LayoutDashboard, 
@@ -23,7 +24,12 @@ import {
   Settings,
   Menu,
   X,
-  FileCheck
+  FileCheck,
+  DollarSign,
+  Search,
+  MessageSquare,
+  MapPin,
+  Package
 } from "lucide-react";
 import { useState } from "react";
 
@@ -35,13 +41,14 @@ const navigation = [
             { name: "Dispatch", href: "/admin/dispatch", icon: ClipboardList },
             { name: "Loads", href: "/admin/loads", icon: Truck },
             { name: "Docs Exchange", href: "/admin/docs-exchange", icon: FileCheck },
+            { name: "POD History", href: "/admin/pod-history", icon: FileCheck },
             { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
         ]
     },
     {
         title: "Partners",
         items: [
-            { name: "Drivers", href: "/admin/drivers", icon: Users, badge: "8" },
+            { name: "Drivers", href: "/admin/drivers", icon: Users },
             { name: "Customers", href: "/admin/customers", icon: Building2 },
             { name: "Vendors", href: "/admin/vendors", icon: Store },
         ]
@@ -49,8 +56,8 @@ const navigation = [
     {
         title: "Fleet",
         items: [
-            { name: "Trucks", href: "/admin/equipment?type=truck", icon: Tractor },
-            { name: "Trailers", href: "/admin/equipment?type=trailer", icon: Truck },
+            { name: "Equipment", href: "/admin/equipment", icon: Tractor },
+            { name: "Maintenance", href: "/admin/maintenance", icon: Settings },
         ]
     },
     {
@@ -66,7 +73,17 @@ const navigation = [
         items: [
             { name: "Payroll", href: "/admin/payroll", icon: Banknote },
             { name: "Accounting", href: "/admin/accounting", icon: Calculator },
-            { name: "Expenses", href: "/admin/expenses", icon: Receipt },
+            { name: "Invoices", href: "/admin/invoices", icon: Receipt },
+            { name: "Expenses", href: "/admin/expenses", icon: Package },
+        ]
+    },
+    {
+        title: "Integrations",
+        items: [
+            { name: "QuickBooks", href: "/admin/quickbooks", icon: DollarSign },
+            { name: "Load Boards", href: "/admin/loadboards", icon: Search },
+            { name: "Communications", href: "/admin/communications", icon: MessageSquare },
+            { name: "Live Tracking", href: "/admin/tracking", icon: MapPin },
         ]
     },
     {
@@ -74,7 +91,7 @@ const navigation = [
         items: [
             { name: "Safety", href: "/admin/safety", icon: ShieldCheck },
             { name: "IFTA", href: "/admin/ifta", icon: FileText },
-            { name: "User Management", href: "/admin/users", icon: Users },
+            { name: "Users", href: "/admin/users", icon: Users },
         ]
     }
 ];
@@ -107,14 +124,9 @@ export default function Sidebar() {
             )}>
                 <div className="p-6 border-b border-gray-200 relative">
                     <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                            <img src="/logo.jpeg" alt="MainTMS Logo" className="w-full h-full object-cover" />
-                        </div>
+                        <img src="/maintms-logo.png" alt="MainTMS" className="h-10 w-auto object-contain" />
                         <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xl font-bold text-gray-900 tracking-tight">MAIN</span>
-                                <span className="text-xl font-bold text-blue-600">TMS</span>
-                            </div>
+                            <span className="text-xl font-bold">MainTMS</span>
                             <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium -mt-1">Transport Management</span>
                         </div>
                     </div>
@@ -165,7 +177,14 @@ export default function Sidebar() {
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-glass-border/10">
+                <div className="p-4 border-t space-y-3">
+                    {/* Theme Toggle */}
+                    <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-sm font-medium text-muted-foreground">Theme</span>
+                        <ThemeToggle />
+                    </div>
+                    
+                    {/* Settings Link */}
                     <Link
                         href="/admin/account"
                         onClick={() => setIsOpen(false)}

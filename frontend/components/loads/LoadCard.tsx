@@ -12,22 +12,43 @@ export interface Load {
   status: string;
   broker_name?: string;
   broker_rate?: number;
+  rate_amount?: number;
   driver_name?: string;
   driver_id?: number;
+  driver?: {
+    id: number;
+    name: string;
+  };
+  customer?: {
+    id: number;
+    company_name: string;
+    customer_type?: string;
+  };
   truck_number?: string;
   trailer_number?: string;
   pickup_location?: string;
   pickup_city?: string;
   pickup_state?: string;
+  pickup_address?: string;
   pickup_date?: string;
   delivery_location?: string;
   delivery_city?: string;
   delivery_state?: string;
+  delivery_address?: string;
   delivery_date?: string;
   total_miles?: number;
   rate_per_mile?: number;
+  notes?: string;
+  po_number?: string;
   created_at?: string;
   updated_at?: string;
+  // Document attachments
+  rc_document?: string;
+  bol_document?: string;
+  pod_document?: string;
+  invoice_document?: string;
+  receipt_document?: string;
+  other_document?: string;
 }
 
 interface LoadCardProps {
@@ -73,8 +94,8 @@ export function LoadCard({
     <div
       onClick={handleCardClick}
       className={cn(
-        'group relative bg-white rounded-lg border border-gray-200 p-5 shadow-sm transition-all',
-        'hover:shadow-md hover:border-primary/50',
+        'group relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 shadow-sm transition-all',
+        'hover:shadow-md hover:border-primary/50 dark:hover:border-primary/50',
         onClick && 'cursor-pointer',
         className
       )}
@@ -82,15 +103,15 @@ export function LoadCard({
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary font-bold">
-            #{load.load_number}
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary font-bold text-sm">
+            #
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 text-lg">
+            <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
               Load #{load.load_number}
             </h3>
             {load.broker_name && (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 {load.broker_name}
               </p>
             )}
@@ -121,16 +142,16 @@ export function LoadCard({
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-blue-600">PICKUP</span>
               {load.pickup_date && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {formatDate(load.pickup_date)}
                 </span>
               )}
             </div>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
               {load.pickup_location || 'No pickup location'}
             </p>
             {(load.pickup_city || load.pickup_state) && (
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 {load.pickup_city}, {load.pickup_state}
               </p>
             )}
@@ -139,14 +160,14 @@ export function LoadCard({
 
         {/* Arrow with miles */}
         <div className="flex items-center gap-2 pl-10">
-          <div className="flex-1 h-px bg-gray-200" />
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <ArrowRight className="h-3 w-3" />
             {load.total_miles && (
               <span className="font-medium">{load.total_miles} mi</span>
             )}
           </div>
-          <div className="flex-1 h-px bg-gray-200" />
+          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
         </div>
 
         {/* Delivery */}
@@ -158,16 +179,16 @@ export function LoadCard({
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-green-600">DELIVERY</span>
               {load.delivery_date && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {formatDate(load.delivery_date)}
                 </span>
               )}
             </div>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
               {load.delivery_location || 'No delivery location'}
             </p>
             {(load.delivery_city || load.delivery_state) && (
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 {load.delivery_city}, {load.delivery_state}
               </p>
             )}
@@ -181,8 +202,8 @@ export function LoadCard({
         <div className="flex items-center gap-2">
           <User className="h-4 w-4 text-gray-400" />
           <div className="min-w-0">
-            <p className="text-xs text-gray-500">Driver</p>
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Driver</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
               {load.driver_name || 'Unassigned'}
             </p>
           </div>
@@ -192,8 +213,8 @@ export function LoadCard({
         <div className="flex items-center gap-2">
           <Truck className="h-4 w-4 text-gray-400" />
           <div className="min-w-0">
-            <p className="text-xs text-gray-500">Equipment</p>
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Equipment</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
               {load.truck_number ? `${load.truck_number}/${load.trailer_number || 'N/A'}` : 'N/A'}
             </p>
           </div>
@@ -203,7 +224,7 @@ export function LoadCard({
         <div className="flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-gray-400" />
           <div className="min-w-0">
-            <p className="text-xs text-gray-500">Broker Rate</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Broker Rate</p>
             <p className="text-sm font-medium text-green-600">
               {formatCurrency(load.broker_rate)}
             </p>
@@ -215,8 +236,8 @@ export function LoadCard({
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-gray-400" />
             <div className="min-w-0">
-              <p className="text-xs text-gray-500">Per Mile</p>
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Per Mile</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
                 {formatCurrency(load.rate_per_mile)}/mi
               </p>
             </div>
@@ -255,3 +276,4 @@ export function LoadCard({
 }
 
 export default LoadCard;
+

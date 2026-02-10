@@ -583,6 +583,42 @@ export default function AdminLoadDetail() {
                 </div>
 
                 {!payLedger && <div className="text-sm text-gray-600">Loading pay ledger...</div>}
+                
+                {/* Locked Lines Warning */}
+                {payLedger && payLedger.by_payee.some(p => p.lines.some(l => l.locked_at)) && (
+                  <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">⚠️</span>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-amber-900">This load has locked pay lines</h4>
+                        <p className="text-sm text-amber-800 mt-1">
+                          Some lines have been included in paid settlements and cannot be modified. 
+                          If you need to make changes, adjustments will be created in the next pay period.
+                        </p>
+                        <div className="mt-2 text-xs text-amber-700">
+                          🔒 Locked lines will appear with a lock icon and yellow background
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Adjustment Lines Notice */}
+                {payLedger && payLedger.by_payee.some(p => p.lines.some(l => l.category === 'adjustment')) && (
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">ℹ️</span>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-blue-900">Adjustments Detected</h4>
+                        <p className="text-sm text-blue-800 mt-1">
+                          This load has adjustment lines created due to changes made after a settlement was paid.
+                          These adjustments will be included in the next pay period.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {payLedger?.by_payee.map((payee) => (
                   <div key={payee.payee_id} className="border border-gray-200 rounded-lg overflow-hidden mb-4">
                     {/* Payee Header */}
@@ -632,12 +668,29 @@ export default function AdminLoadDetail() {
                       <tbody className="divide-y divide-gray-200">
                         {/* Regular Line Items */}
                         {payee.lines.map((line) => (
-                          <tr key={line.id} className="hover:bg-gray-50">
+                          <tr key={line.id} className={`hover:bg-gray-50 ${line.locked_at ? 'bg-yellow-50' : ''}`}>
                             <td className="px-4 py-3 text-sm text-gray-900">
                               {load.pickup_date || new Date().toLocaleDateString()}
+                              {line.locked_at && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <span className="text-xs text-amber-600">🔒 Locked</span>
+                                  {line.settlement_id && (
+                                    <span className="text-xs text-gray-500">
+                                      (Settlement #{line.settlement_id})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900">
-                              <span className="font-medium text-blue-600">{line.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-blue-600">{line.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                                {line.locked_at && (
+                                  <span title={`Locked on ${new Date(line.locked_at).toLocaleString()}`} className="cursor-help">
+                                    🔒
+                                  </span>
+                                )}
+                              </div>
                               {line.description && <span className="text-gray-600"> - {line.description}</span>}
                             </td>
                             <td className={`px-4 py-3 text-sm text-right font-semibold ${line.amount >= 0 ? "text-emerald-600" : "text-rose-600"}`}>

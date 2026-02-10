@@ -73,21 +73,21 @@ export default function AccountingDashboard() {
 
   if (loading) {
     return (
-      <main className="p-8 bg-slate-50 min-h-screen">
+      <main className="p-8 bg-background min-h-screen">
         <div className="text-center py-20">
           <div className="animate-spin h-12 w-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading invoices...</p>
+          <p className="mt-4 text-muted-foreground">Loading invoices...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="p-8 bg-slate-50 min-h-screen space-y-6">
+    <main className="p-8 bg-background min-h-screen space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">
             Invoicing & AR
           </h1>
           <p className="text-slate-500 mt-1">
@@ -139,7 +139,7 @@ export default function AccountingDashboard() {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-card p-4 rounded-xl border border shadow-sm">
         <div className="flex gap-2">
           {["all", "draft", "sent", "paid", "overdue"].map((status) => (
             <button
@@ -148,7 +148,7 @@ export default function AccountingDashboard() {
               className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
                 filterStatus === status
                   ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  : "bg-gray-100 text-muted-foreground hover:bg-gray-200"
               }`}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -160,12 +160,12 @@ export default function AccountingDashboard() {
       {/* Invoices Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredInvoices.length === 0 ? (
-          <div className="col-span-full text-center py-20 bg-white rounded-xl border border-gray-200">
+          <div className="col-span-full text-center py-20 bg-card rounded-xl border border">
             <div className="text-6xl mb-4">📭</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2">
               No invoices found
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               Create your first invoice to get started
             </p>
             <button
@@ -268,13 +268,13 @@ function InvoiceCard({
     invoice.balance_due > 0;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-6">
+    <div className="bg-card rounded-xl border border shadow-sm hover:shadow-md transition-all p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900">
+          <h3 className="text-lg font-bold text-foreground">
             {invoice.invoice_number}
           </h3>
-          <p className="text-sm text-gray-600">{invoice.customer_name}</p>
+          <p className="text-sm text-muted-foreground">{invoice.customer_name}</p>
         </div>
         <span
           className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
@@ -285,7 +285,7 @@ function InvoiceCard({
         </span>
       </div>
 
-      <div className="space-y-2 text-sm text-gray-600 mb-4">
+      <div className="space-y-2 text-sm text-muted-foreground mb-4">
         <p>
           <span className="font-semibold">Date:</span>{" "}
           {new Date(invoice.invoice_date).toLocaleDateString()}
@@ -299,15 +299,15 @@ function InvoiceCard({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4 pt-4 border-t border-gray-200">
+      <div className="grid grid-cols-2 gap-4 mb-4 pt-4 border-t border">
         <div>
-          <p className="text-xs text-gray-500">Total</p>
-          <p className="text-lg font-bold text-gray-900">
+          <p className="text-xs text-muted-foreground">Total</p>
+          <p className="text-lg font-bold text-foreground">
             ${invoice.total_amount.toLocaleString()}
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Balance Due</p>
+          <p className="text-xs text-muted-foreground">Balance Due</p>
           <p
             className={`text-lg font-bold ${
               invoice.balance_due > 0 ? "text-red-600" : "text-green-600"
@@ -320,7 +320,7 @@ function InvoiceCard({
 
       <button
         onClick={() => onView(invoice)}
-        className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+        className="w-full px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-semibold"
       >
         View Details
       </button>
@@ -399,12 +399,12 @@ function CreateInvoiceModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 my-8">
+      <div className="bg-card rounded-2xl shadow-2xl max-w-3xl w-full p-6 my-8">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-gray-900">Create Invoice</h3>
+          <h3 className="text-2xl font-bold text-foreground">Create Invoice</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
+            className="text-gray-400 hover:text-muted-foreground text-2xl"
           >
             ✕
           </button>
@@ -413,14 +413,14 @@ function CreateInvoiceModal({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Customer *
               </label>
               <select
                 required
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="">Select customer...</option>
                 {customers.map((customer) => (
@@ -432,7 +432,7 @@ function CreateInvoiceModal({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Invoice Date *
               </label>
               <input
@@ -440,18 +440,18 @@ function CreateInvoiceModal({
                 required
                 value={invoiceDate}
                 onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Payment Terms *
               </label>
               <select
                 value={paymentTerms}
                 onChange={(e) => setPaymentTerms(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="Net 15">Net 15</option>
                 <option value="Net 30">Net 30</option>
@@ -463,7 +463,7 @@ function CreateInvoiceModal({
 
             <div className="flex items-end">
               <div className="text-right w-full">
-                <p className="text-sm text-gray-600">Total Amount</p>
+                <p className="text-sm text-muted-foreground">Total Amount</p>
                 <p className="text-2xl font-bold text-green-600">
                   ${totalAmount.toLocaleString()}
                 </p>
@@ -472,19 +472,19 @@ function CreateInvoiceModal({
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground mb-2">
               Select Loads to Invoice *
             </label>
-            <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4 space-y-2">
+            <div className="max-h-64 overflow-y-auto border border rounded-lg p-4 space-y-2">
               {loads.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">
+                <p className="text-center text-muted-foreground py-8">
                   No delivered loads available
                 </p>
               ) : (
                 loads.map((load) => (
                   <label
                     key={load.id}
-                    className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                    className="flex items-center space-x-3 p-3 hover:bg-background rounded-lg cursor-pointer"
                   >
                     <input
                       type="checkbox"
@@ -493,10 +493,10 @@ function CreateInvoiceModal({
                       className="w-5 h-5 text-green-600"
                     />
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-foreground">
                         {load.load_number}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {load.pickup_address} → {load.delivery_address}
                       </p>
                     </div>
@@ -513,7 +513,7 @@ function CreateInvoiceModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              className="flex-1 px-4 py-2 bg-gray-200 text-foreground rounded-lg hover:bg-gray-300 transition-colors font-semibold"
             >
               Cancel
             </button>
@@ -581,14 +581,14 @@ function ViewInvoiceModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 my-8">
+      <div className="bg-card rounded-2xl shadow-2xl max-w-2xl w-full p-6 my-8">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-gray-900">
+          <h3 className="text-2xl font-bold text-foreground">
             {invoice.invoice_number}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
+            className="text-gray-400 hover:text-muted-foreground text-2xl"
           >
             ✕
           </button>
@@ -596,26 +596,26 @@ function ViewInvoiceModal({
 
         <div className="space-y-6">
           {/* Invoice Details */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-2 gap-4 p-4 bg-background rounded-lg">
             <div>
-              <p className="text-sm text-gray-600">Customer</p>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm text-muted-foreground">Customer</p>
+              <p className="font-semibold text-foreground">
                 {invoice.customer_name}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Status</p>
-              <p className="font-semibold text-gray-900">{invoice.status}</p>
+              <p className="text-sm text-muted-foreground">Status</p>
+              <p className="font-semibold text-foreground">{invoice.status}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Invoice Date</p>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm text-muted-foreground">Invoice Date</p>
+              <p className="font-semibold text-foreground">
                 {new Date(invoice.invoice_date).toLocaleDateString()}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Due Date</p>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm text-muted-foreground">Due Date</p>
+              <p className="font-semibold text-foreground">
                 {new Date(invoice.due_date).toLocaleDateString()}
               </p>
             </div>
@@ -623,17 +623,17 @@ function ViewInvoiceModal({
 
           {/* Line Items */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-2">Line Items</h4>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <h4 className="font-semibold text-foreground mb-2">Line Items</h4>
+            <div className="border border rounded-lg overflow-hidden">
               {invoice.line_items.map((item: any) => (
                 <div
                   key={item.id}
-                  className="p-4 border-b border-gray-200 last:border-b-0"
+                  className="p-4 border-b border last:border-b-0"
                 >
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-foreground">
                     {item.description}
                   </p>
-                  <div className="flex justify-between text-sm text-gray-600 mt-1">
+                  <div className="flex justify-between text-sm text-muted-foreground mt-1">
                     <span>
                       Qty: {item.quantity} × ${item.unit_price.toLocaleString()}
                     </span>
@@ -647,14 +647,14 @@ function ViewInvoiceModal({
           </div>
 
           {/* Totals */}
-          <div className="border-t border-gray-200 pt-4">
-            <div className="flex justify-between text-gray-600 mb-2">
+          <div className="border-t border pt-4">
+            <div className="flex justify-between text-muted-foreground mb-2">
               <span>Total Amount:</span>
               <span className="font-semibold">
                 ${invoice.total_amount.toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between text-gray-600 mb-2">
+            <div className="flex justify-between text-muted-foreground mb-2">
               <span>Amount Paid:</span>
               <span className="font-semibold text-green-600">
                 ${invoice.amount_paid.toLocaleString()}
@@ -690,7 +690,7 @@ function ViewInvoiceModal({
                 <button
                   onClick={handleRecordPayment}
                   disabled={recording}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50"
                 >
                   {recording ? "Recording..." : "Record"}
                 </button>
@@ -710,7 +710,7 @@ function ViewInvoiceModal({
             )}
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              className="flex-1 px-4 py-2 bg-gray-200 text-foreground rounded-lg hover:bg-gray-300 transition-colors font-semibold"
             >
               Close
             </button>

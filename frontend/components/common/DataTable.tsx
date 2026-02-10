@@ -187,20 +187,20 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Table */}
-      <div className="rounded-lg border bg-white overflow-hidden">
+      <div className="rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b bg-gray-50/50">
+              <tr className="border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
                 {columns.map((column) => (
                   <th
                     key={column.key}
                     style={{ width: column.width }}
                     className={cn(
-                      'px-4 py-3 text-sm font-semibold text-gray-700',
+                      'px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300',
                       column.align === 'center' && 'text-center',
                       column.align === 'right' && 'text-right',
-                      column.sortable && 'cursor-pointer select-none hover:bg-gray-100 transition-colors'
+                      column.sortable && 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
                     )}
                     onClick={() => column.sortable && handleSort(column.key)}
                   >
@@ -216,7 +216,7 @@ export function DataTable<T extends Record<string, any>>({
               {loading ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center">
-                    <div className="flex items-center justify-center gap-2 text-gray-500">
+                    <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
                       <RefreshCw className="h-5 w-5 animate-spin" />
                       <span>Loading...</span>
                     </div>
@@ -234,9 +234,9 @@ export function DataTable<T extends Record<string, any>>({
                     key={rowIndex}
                     onClick={() => onRowClick?.(row, rowIndex)}
                     className={cn(
-                      'border-b last:border-b-0 transition-colors',
-                      striped && rowIndex % 2 === 1 && 'bg-gray-50/30',
-                      hoverable && 'hover:bg-primary/5',
+                      'border-b dark:border-gray-700 last:border-b-0 transition-colors',
+                      striped && rowIndex % 2 === 1 && 'bg-gray-50/30 dark:bg-gray-900/30',
+                      hoverable && 'hover:bg-primary/5 dark:hover:bg-gray-700/50',
                       onRowClick && 'cursor-pointer'
                     )}
                   >
@@ -244,7 +244,7 @@ export function DataTable<T extends Record<string, any>>({
                       <td
                         key={column.key}
                         className={cn(
-                          'px-4 py-3 text-sm text-gray-700',
+                          'px-4 py-3 text-sm text-gray-700 dark:text-gray-300',
                           column.align === 'center' && 'text-center',
                           column.align === 'right' && 'text-right'
                         )}

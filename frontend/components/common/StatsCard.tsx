@@ -100,8 +100,8 @@ export function StatsCard({
     <div
       onClick={onClick}
       className={cn(
-        'relative overflow-hidden rounded-xl border bg-white p-6 shadow-sm transition-all',
-        'hover:shadow-md',
+        'relative overflow-hidden rounded-xl border bg-white dark:bg-gray-800 p-6 shadow-sm transition-all',
+        'hover:shadow-md dark:border-gray-700',
         onClick && 'cursor-pointer hover:scale-[1.02]',
         colors.border,
         className
@@ -117,10 +117,10 @@ export function StatsCard({
         <>
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600 mb-1">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                 {title}
               </p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {value}
               </p>
             </div>
@@ -149,7 +149,7 @@ export function StatsCard({
             )}
             
             {description && !trend && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {description}
               </p>
             )}

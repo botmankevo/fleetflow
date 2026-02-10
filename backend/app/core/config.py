@@ -9,7 +9,12 @@ class Settings(BaseSettings):
     TOKEN_EXP_MINUTES: int = 1440
     DEBUG: bool = False
 
-    DATABASE_URL: str = "postgresql+psycopg2://fleetflow:fleetflow@db:5432/fleetflow"
+    DATABASE_URL: str = "sqlite:///./app.db"
+    
+    # PostgreSQL settings (for Docker)
+    POSTGRES_DB: str = "fleetflow"
+    POSTGRES_USER: str = "fleetflow"
+    POSTGRES_PASSWORD: str = "fleetflow"
 
     AIRTABLE_PAT: str = ""
     AIRTABLE_BASE_ID: str = ""
@@ -39,10 +44,14 @@ class Settings(BaseSettings):
     # Feature Flags
     DEMO_MODE: bool = True
     CUSTOMER_PORTAL_ENABLED: bool = True
+    
+    # Frontend (can be in .env but not used by backend)
+    NEXT_PUBLIC_API_BASE: str = "http://127.0.0.1:8000"
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Allow extra fields in .env
 
 
 settings = Settings()

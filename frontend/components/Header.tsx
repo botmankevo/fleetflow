@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, getToken } from "../lib/api";
 import { Search, Bell, Command, User, LogOut, ChevronDown, Settings } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -52,6 +53,7 @@ export default function Header() {
             </div>
 
             <div className="flex items-center gap-2 lg:gap-4">
+                <ThemeToggle />
                 <button className="relative p-2.5 rounded-xl hover:bg-secondary transition-all text-muted-foreground hover:text-foreground active:scale-95 group">
                     <Bell className="w-5 h-5" />
                     <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-background group-hover:animate-bounce pulse-glow-accent"></span>
