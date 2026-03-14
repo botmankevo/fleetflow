@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, Upload, FileText, Plus, GripVertical, Trash2, Building2, User, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiFetch, getToken } from "@/lib/api";
+import { apiFetch, getToken, API_BASE } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 
@@ -17,6 +17,8 @@ interface Stop {
   scheduledDate: string;
   contactName: string;
   contactPhone: string;
+  website?: string;
+  hours?: string;
   notes: string;
 }
 
@@ -27,6 +29,7 @@ interface EnhancedCreateLoadModalProps {
   drivers: Array<{ id: number; name: string; truck_id?: number; trailer_id?: number }>;
   brokers: Array<{ id: number; name: string }>;
   equipment: Array<{ id: number; identifier: string; equipment_type: string }>;
+  editLoad?: any; // New prop for editing
 }
 
 type ViewMode = "choice" | "manual" | "ocr" | "review";
@@ -38,24 +41,50 @@ export default function EnhancedCreateLoadModal({
   drivers,
   brokers,
   equipment,
+  editLoad,
 }: EnhancedCreateLoadModalProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("choice");
+  const [viewMode, setViewMode] = useState<ViewMode>(editLoad ? "review" : "choice");
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [form, setForm] = useState({
-    loadNumber: "",
-    status: "Created",
-    driverId: "",
-    brokerId: "",
-    brokerName: "",
-    poNumber: "",
-    rateAmount: "",
-    notes: "",
+    loadNumber: editLoad?.load_number || "",
+    status: editLoad?.status || "Created",
+    driverId: editLoad?.driver_id?.toString() || "",
+    brokerId: editLoad?.customer_id?.toString() || "",
+    brokerName: editLoad?.broker_name || "",
+    poNumber: editLoad?.po_number || "",
+    rateAmount: editLoad?.rate_amount?.toString() || "",
+    notes: editLoad?.notes || "",
+    loadType: editLoad?.load_type || "Full",
+    weight: editLoad?.weight?.toString() || "",
+    pallets: editLoad?.pallets?.toString() || "",
+    lengthFt: editLoad?.length_ft?.toString() || "",
+    fuelSurcharge: editLoad?.fuel_surcharge?.toString() || "0",
+    detention: editLoad?.detention?.toString() || "0",
+    layover: editLoad?.layover?.toString() || "0",
+    lumper: editLoad?.lumper?.toString() || "0",
+    otherFees: editLoad?.other_fees?.toString() || "0",
+    rcDocument: editLoad?.rc_document || "",
+    truckId: editLoad?.truck_id?.toString() || "",
+    trailerId: editLoad?.trailer_id?.toString() || "",
   });
 
-  const [stops, setStops] = useState<Stop[]>([
+  const [stops, setStops] = useState<Stop[]>(editLoad?.stops?.map((s: any) => ({
+    id: s.id.toString(),
+    type: s.stop_type,
+    address: s.address || "",
+    city: s.city || "",
+    state: s.state || "",
+    zip: s.zip_code || "",
+    scheduledDate: s.date || "",
+    contactName: s.company || "",
+    contactPhone: s.phone || "",
+    website: s.website || "",
+    hours: s.hours || "",
+    notes: s.notes || "",
+  })) || [
     {
       id: "1",
       type: "pickup",
@@ -66,6 +95,8 @@ export default function EnhancedCreateLoadModal({
       scheduledDate: "",
       contactName: "",
       contactPhone: "",
+      website: "",
+      hours: "",
       notes: "",
     },
     {
@@ -78,6 +109,8 @@ export default function EnhancedCreateLoadModal({
       scheduledDate: "",
       contactName: "",
       contactPhone: "",
+      website: "",
+      hours: "",
       notes: "",
     },
   ]);
@@ -89,18 +122,20 @@ export default function EnhancedCreateLoadModal({
   const [uploadedFileType, setUploadedFileType] = useState<string>('');
   const [pdfZoom, setPdfZoom] = useState(100);
   const [originalOcrText, setOriginalOcrText] = useState<string>('');
+  const [editingStopIndex, setEditingStopIndex] = useState<number | null>(null);
+  const [showEditStopModal, setShowEditStopModal] = useState(false);
 
   // Helper to convert MM/DD/YYYY HH:MMAM/PM to YYYY-MM-DDTHH:MM format
   const convertToDateTimeLocal = (dateStr: string, timeStr: string) => {
     try {
       const [month, day, year] = dateStr.split('/');
       let [time, period] = timeStr.match(/(\d{2}:\d{2})([AP]M)/)?.slice(1, 3) || ['', ''];
-      
+
       if (time && period) {
         let [hours, minutes] = time.split(':').map(n => parseInt(n));
         if (period === 'PM' && hours !== 12) hours += 12;
         if (period === 'AM' && hours === 12) hours = 0;
-        
+
         const hourStr = hours.toString().padStart(2, '0');
         return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hourStr}:${minutes.toString().padStart(2, '0')}`;
       }
@@ -113,7 +148,7 @@ export default function EnhancedCreateLoadModal({
   // Parse raw OCR text into structured data
   const parseRateConfirmation = (rawText: string) => {
     const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
-    
+
     const parsed: any = {
       load_number: '',
       broker_name: '',
@@ -146,14 +181,14 @@ export default function EnhancedCreateLoadModal({
     const carrierPayMatch = rawText.match(/Carrier\s+Freight\s+Pay[:\s]+\$\s*([\d,]+\.?\d{0,2})/i);
     const paymentMatch = rawText.match(/Payment[:\s]+\$\s*([\d,]+\.?\d{0,2})/i);
     const rateMatch = rawText.match(/\$\s*([\d,]+\.?\d{0,2})/);
-    
+
     if (carrierPayMatch) {
-        parsed.rate_amount = carrierPayMatch[1].replace(/,/g, ''); // Remove commas
-        console.log('✓ Rate extracted:', parsed.rate_amount);
+      parsed.rate_amount = carrierPayMatch[1].replace(/,/g, ''); // Remove commas
+      console.log('✓ Rate extracted:', parsed.rate_amount);
     } else if (paymentMatch) {
-        parsed.rate_amount = paymentMatch[1].replace(/,/g, '');
+      parsed.rate_amount = paymentMatch[1].replace(/,/g, '');
     } else if (rateMatch && parseFloat(rateMatch[1].replace(/,/g, '')) > 100) {
-        parsed.rate_amount = rateMatch[1].replace(/,/g, '');
+      parsed.rate_amount = rateMatch[1].replace(/,/g, '');
     }
 
     // Extract miles (separate from rate)
@@ -162,13 +197,13 @@ export default function EnhancedCreateLoadModal({
 
     // Extract pickup location (PU1, PU2, etc.) - More flexible pattern
     const puMatches = [...rawText.matchAll(/PU\d+\s+Name[:\s]+([^\n]+)[\s\S]{0,200}?Address[:\s]+([^\n]+)[\s\S]{0,100}?\n\s*([A-Z][A-Z\s]+)[\s\S]{0,200}?Date[:\s]+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}[AP]M)/gi)];
-    
+
     puMatches.forEach(match => {
       const [_, name, address, city, date, time] = match;
-      
+
       // Convert date format from MM/DD/YYYY HH:MMAM/PM to YYYY-MM-DDTHH:MM
       const dateStr = convertToDateTimeLocal(date, time);
-      
+
       parsed.addresses.push({
         type: 'pickup',
         full_address: address.trim(),
@@ -184,11 +219,11 @@ export default function EnhancedCreateLoadModal({
 
     // Extract delivery location (SO1, SO2, etc.) - More flexible pattern
     const soMatches = [...rawText.matchAll(/SO\d+\s+Name[:\s]+([^\n]+)[\s\S]{0,200}?Address[:\s]+([^\n]+)[\s\S]{0,100}?\n\s*([A-Z][A-Z\s]+)[\s\S]{0,200}?Date[:\s]+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}[AP]M)/gi)];
-    
+
     soMatches.forEach(match => {
       const [_, name, address, city, date, time] = match;
       const dateStr = convertToDateTimeLocal(date, time);
-      
+
       parsed.addresses.push({
         type: 'delivery',
         full_address: address.trim(),
@@ -265,80 +300,71 @@ export default function EnhancedCreateLoadModal({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("http://localhost:8000/loads/parse-rate-con", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Failed to parse rate confirmation");
-      }
-
-      const data = await response.json();
-      console.log("===== OCR RESPONSE =====");
-      console.log("Full response:", JSON.stringify(data, null, 2));
-      console.log("========================");
+      const [data, uploadRes] = await Promise.all([
+        apiFetch("/loads/parse-rate-con", {
+          method: "POST",
+          body: formData,
+        }),
+        apiFetch("/document-uploads/upload", {
+          method: "POST",
+          body: formData,
+        })
+      ]);
       
-      let extracted = data.data || data;
-      
-      // If OCR returned raw text, parse it
-      if (typeof extracted === 'string' || extracted.raw_data) {
-        const rawText = extracted.raw_data || extracted;
-        console.log("Parsing raw OCR text:", rawText);
-        setOriginalOcrText(rawText); // Save for learning
-        extracted = parseRateConfirmation(rawText);
-        console.log("Parsed data:", extracted);
-      } else if (typeof data === 'object' && !data.load_number && !data.addresses) {
-        // If we got a response object without expected fields, might be wrapped
-        console.log("Attempting to find raw text in response...");
-        const possibleText = data.text || data.content || data.result || JSON.stringify(data);
-        setOriginalOcrText(possibleText); // Save for learning
-        extracted = parseRateConfirmation(possibleText);
-        console.log("Parsed from fallback:", extracted);
-      }
+      console.log("===== OCR RESPONSE =====", data);
+      console.log("===== UPLOAD RESPONSE =====", uploadRes);
 
-      // Pre-fill form with extracted data - with better handling
-      const extractedFormData = {
-        loadNumber: extracted.load_number || extracted.loadNumber || "",
-        status: "Created",
-        driverId: "",
-        brokerId: "",
-        brokerName: extracted.broker_name || extracted.brokerName || "",
-        poNumber: extracted.po_number || extracted.poNumber || "",
-        rateAmount: extracted.rate_amount || extracted.rateAmount || "",
+      const extracted = data.data || {};
+      const rawText = data.raw_text || "";
+      setOriginalOcrText(rawText);
+      
+      const permanentUrl = uploadRes.file_url || fileUrl;
+
+      setForm(prev => ({
+        ...prev,
+        loadNumber: extracted.load_number || extracted.loadNumber || prev.loadNumber,
+        brokerName: extracted.broker_name || extracted.brokerName || prev.brokerName,
+        poNumber: extracted.po_number || extracted.poNumber || prev.poNumber,
+        rateAmount: extracted.rate_amount || extracted.rateAmount || prev.rateAmount,
+        weight: extracted.weight || prev.weight,
+        pallets: extracted.pallets || prev.pallets,
+        lengthFt: extracted.length_ft || extracted.lengthFt || prev.lengthFt,
+        fuelSurcharge: extracted.fuel_surcharge || extracted.fuelSurcharge || prev.fuelSurcharge,
+        detention: extracted.detention || prev.detention,
+        layover: extracted.layover || prev.layover,
+        lumper: extracted.lumper || prev.lumper,
+        otherFees: extracted.other_fees || extracted.otherFees || prev.otherFees,
+        rcDocument: permanentUrl,
         notes: [
-          extracted.description || extracted.commodity ? `Commodity: ${extracted.description || extracted.commodity}` : '',
-          extracted.weight ? `Weight: ${extracted.weight}` : '',
-          extracted.miles ? `Miles: ${extracted.miles}` : '',
-          extracted.mc_number || extracted.mcNumber ? `MC: ${extracted.mc_number || extracted.mcNumber}` : ''
-        ].filter(Boolean).join(' | '),
-      };
-      
-      console.log("=== SETTING FORM DATA ===");
-      console.log("Form values being set:", extractedFormData);
-      console.log("========================");
-      
-      setForm(extractedFormData);
+          extracted.commodity ? `Commodity: ${extracted.commodity}` : '',
+          extracted.equipment_type ? `Equipment: ${extracted.equipment_type}` : '',
+          extracted.stop_count ? `Stops: ${extracted.stop_count}` : ''
+        ].filter(Boolean).join(' | ') || prev.notes
+      }));
 
       // Pre-fill stops from extracted addresses
-      const addresses = extracted.addresses || extracted.pickup_delivery || [];
+      const addresses = extracted.addresses || [];
       if (addresses && addresses.length > 0) {
         const newStops: Stop[] = addresses.map((addr: any, idx: number) => ({
           id: `${idx + 1}`,
-          type: addr.type || (idx === 0 ? "pickup" : "delivery"),
-          address: addr.full_address || addr.street || addr.address || "",
+          type: addr.type || (idx === 0 ? "pickup" : (idx === addresses.length - 1 ? "delivery" : "delivery")),
+          address: addr.street || addr.full_address || "",
           city: addr.city || "",
           state: addr.state || "",
-          zip: addr.zip || addr.zip_code || "",
-          scheduledDate: addr.date || addr.scheduled_date || "",
-          contactName: addr.contactName || addr.contact_name || "",
-          contactPhone: addr.contactPhone || addr.contact_phone || "",
-          notes: addr.notes || "",
+          zip: addr.zip || "",
+          scheduledDate: addr.date || (idx === 0 ? extracted.pickup_date : (idx === addresses.length - 1 ? extracted.delivery_date : "")) || "",
+          contactName: addr.company || "",
+          contactPhone: "",
+          website: "",
+          hours: "",
+          notes: "",
         }));
-        console.log('Setting stops with dates:', newStops);
         setStops(newStops);
+      } else if (extracted.pickup_date || extracted.delivery_date) {
+        setStops(prev => prev.map((stop, idx) => ({
+          ...stop,
+          scheduledDate: idx === 0 ? (extracted.pickup_date || "") : (extracted.delivery_date || "")
+        })));
       }
 
       setViewMode("review");
@@ -361,6 +387,10 @@ export default function EnhancedCreateLoadModal({
         state: "",
         zip: "",
         scheduledDate: "",
+        contactName: "",
+        contactPhone: "",
+        website: "",
+        hours: "",
         notes: "",
       },
     ]);
@@ -390,7 +420,7 @@ export default function EnhancedCreateLoadModal({
     const draggedItem = newStops[draggedIndex];
     newStops.splice(draggedIndex, 1);
     newStops.splice(index, 0, draggedItem);
-    
+
     setStops(newStops);
     setDraggedIndex(index);
   };
@@ -406,33 +436,21 @@ export default function EnhancedCreateLoadModal({
     }
 
     try {
-      const token = getToken();
-      const response = await fetch("http://localhost:8000/customers", {
+      const data = await apiFetch("/customers", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: newBrokerName.trim(),
           type: "broker",
           email: "", // Optional but might be required
           phone: "", // Optional but might be required
         }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Failed to create broker: ${response.status}`);
-      }
-
-      const data = await response.json();
       console.log("Created broker:", data);
-      
+
       // Add to brokers list and select it
       const newBroker = { id: data.id, name: newBrokerName.trim() };
       brokers.push(newBroker);
-      
+
       setForm({ ...form, brokerId: data.id.toString(), brokerName: newBrokerName.trim() });
       setShowCreateBroker(false);
       setNewBrokerName("");
@@ -456,35 +474,77 @@ export default function EnhancedCreateLoadModal({
     setError(null);
 
     try {
-      const token = getToken();
-      const payload = {
-        load_number: form.loadNumber,
-        status: form.status,
-        driver_id: form.driverId ? parseInt(form.driverId) : null,
-        customer_id: form.brokerId ? parseInt(form.brokerId) : null,
-        po_number: form.poNumber,
-        rate: form.rateAmount ? parseFloat(form.rateAmount) * 100 : 0,
-        notes: form.notes,
-        stops: stops.map((stop, idx) => ({
-          sequence: idx + 1,
-          type: stop.type,
-          address: stop.address,
-          city: stop.city,
-          state: stop.state,
-          zip_code: stop.zip,
-          scheduled_time: stop.scheduledDate || null,
-          notes: stop.notes,
-        })),
+      const safeParseFloat = (val: string | number | undefined, fallback: number | null = 0) => {
+        if (val === undefined || val === null || val === '') return fallback;
+        const parsed = parseFloat(val.toString());
+        return isNaN(parsed) ? fallback : parsed;
       };
 
-      await apiFetch("/loads", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const safeParseInt = (val: string | number | undefined, fallback: number | null = null) => {
+        if (val === undefined || val === null || val === '') return fallback;
+        const parsed = parseInt(val.toString());
+        return isNaN(parsed) ? fallback : parsed;
+      };
+
+      const pickupStop = stops.find(s => s.type === 'pickup') || stops[0] || { address: '', city: '' };
+      const deliveryStop = [...stops].reverse().find(s => s.type === 'delivery') || stops[stops.length - 1] || { address: '', city: '' };
+
+      const payload = {
+        load_number: String(form.loadNumber || ""),
+        status: String(form.status || "Created"),
+        driver_id: safeParseInt(form.driverId),
+        customer_id: safeParseInt(form.brokerId),
+        po_number: String(form.poNumber || ""),
+        rate_amount: safeParseFloat(form.rateAmount),
+        notes: String(form.notes || ""),
+        pickup_address: String(pickupStop.address || pickupStop.city || "Pending").trim(),
+        delivery_address: String(deliveryStop.address || deliveryStop.city || "Pending").trim(),
+        stops: stops.map((stop, idx) => ({
+          stop_number: idx + 1,
+          stop_type: stop.type || "pickup",
+          company: stop.contactName || "",
+          address: stop.address || "",
+          city: stop.city || "",
+          state: stop.state || "",
+          zip_code: stop.zip || "",
+          date: stop.scheduledDate || null,
+          time: null,
+          phone: stop.contactPhone || "",
+          website: stop.website || "",
+          hours: stop.hours || "",
+          notes: stop.notes || "",
+        })),
+        load_type: String(form.loadType || "Full"),
+        weight: safeParseFloat(form.weight, null),
+        pallets: safeParseInt(form.pallets),
+        length_ft: safeParseFloat(form.lengthFt, null),
+        rate_amount: safeParseFloat(form.rateAmount),
+        fuel_surcharge: safeParseFloat(form.fuelSurcharge),
+        detention: safeParseFloat(form.detention),
+        layover: safeParseFloat(form.layover),
+        lumper: safeParseFloat(form.lumper),
+        other_fees: safeParseFloat(form.otherFees),
+        rc_document: form.rcDocument,
+        truck_id: form.truckId ? parseInt(form.truckId) : null,
+        trailer_id: form.trailerId ? parseInt(form.trailerId) : null,
+        broker_name: form.brokerName,
+        po_number: form.poNumber,
+        customer_id: form.brokerId ? parseInt(form.brokerId) : null,
+      };
+
+      console.log("Submitting load payload:", payload);
+
+      if (editLoad) {
+        await apiFetch(`/loads/${editLoad.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiFetch("/loads", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
 
       // Save OCR learning data if we extracted from a document
       if (originalOcrText && viewMode === "review") {
@@ -502,12 +562,12 @@ export default function EnhancedCreateLoadModal({
             })),
             timestamp: new Date().toISOString()
           };
-          
+
           // Store in localStorage for now (could be sent to backend later)
           const existingLearning = JSON.parse(localStorage.getItem('ocr_learning_data') || '[]');
           existingLearning.push(learningData);
           localStorage.setItem('ocr_learning_data', JSON.stringify(existingLearning));
-          
+
           console.log("✅ OCR learning data saved for future improvements");
         } catch (err) {
           console.warn("Failed to save OCR learning data:", err);
@@ -529,7 +589,7 @@ export default function EnhancedCreateLoadModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-card rounded-xl shadow-2xl max-w-[95vw] w-full max-h-[95vh] overflow-y-auto">
         <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Create New Load</h2>
+          <h2 className="text-2xl font-bold">{editLoad ? `Edit Load: ${editLoad.load_number || editLoad.id}` : "Create New Load"}</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -685,239 +745,356 @@ export default function EnhancedCreateLoadModal({
 
               {/* Form - Right Side (or Full Width) */}
               <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Info */}
-              <Card className="p-4 space-y-4">
-                <h3 className="font-semibold">Load Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Load Number</label>
-                    <input
-                      type="text"
-                      value={form.loadNumber}
-                      onChange={(e) => setForm({ ...form, loadNumber: e.target.value })}
-                      className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">PO Number</label>
-                    <input
-                      type="text"
-                      value={form.poNumber}
-                      onChange={(e) => setForm({ ...form, poNumber: e.target.value })}
-                      className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Rate Amount</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={form.rateAmount}
-                      onChange={(e) => setForm({ ...form, rateAmount: e.target.value })}
-                      className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Driver
-                    </label>
-                    <select
-                      value={form.driverId}
-                      onChange={(e) => handleDriverChange(e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
-                    >
-                      <option value="">Select Driver</option>
-                      {drivers.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Broker
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        value={form.brokerId}
-                        onChange={(e) => setForm({ ...form, brokerId: e.target.value })}
-                        className="flex-1 mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                {/* Basic Info */}
+                <Card className="p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Load Information</h3>
+                    {viewMode === "manual" && !uploadedFileUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary h-8"
+                        onClick={() => document.getElementById("rate-con-upload")?.click()}
                       >
-                        <option value="">Select Broker</option>
-                        {brokers.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.name}
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Rate Con
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Load Number</label>
+                      <input
+                        type="text"
+                        value={form.loadNumber}
+                        onChange={(e) => setForm({ ...form, loadNumber: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">PO Number</label>
+                      <input
+                        type="text"
+                        value={form.poNumber}
+                        onChange={(e) => setForm({ ...form, poNumber: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Rate Amount</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={form.rateAmount}
+                        onChange={(e) => setForm({ ...form, rateAmount: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Load Type</label>
+                      <select
+                        value={form.loadType}
+                        onChange={(e) => setForm({ ...form, loadType: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      >
+                        <option value="Full">Full</option>
+                        <option value="Partial">Partial</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Weight</label>
+                      <input
+                        type="number"
+                        value={form.weight}
+                        onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                        placeholder="Lbs"
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Pallets</label>
+                      <input
+                        type="number"
+                        value={form.pallets}
+                        onChange={(e) => setForm({ ...form, pallets: e.target.value })}
+                        placeholder="Qty"
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Length (ft)</label>
+                      <input
+                        type="number"
+                        value={form.lengthFt}
+                        onChange={(e) => setForm({ ...form, lengthFt: e.target.value })}
+                        placeholder="Feet"
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-border mt-4">
+                    <div>
+                      <label className="text-sm font-medium">Fuel Surcharge ($)</label>
+                      <input
+                        type="number"
+                        value={form.fuelSurcharge}
+                        onChange={(e) => setForm({ ...form, fuelSurcharge: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Detention ($)</label>
+                      <input
+                        type="number"
+                        value={form.detention}
+                        onChange={(e) => setForm({ ...form, detention: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Layover ($)</label>
+                      <input
+                        type="number"
+                        value={form.layover}
+                        onChange={(e) => setForm({ ...form, layover: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Lumper ($)</label>
+                      <input
+                        type="number"
+                        value={form.lumper}
+                        onChange={(e) => setForm({ ...form, lumper: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Other Fees ($)</label>
+                      <input
+                        type="number"
+                        value={form.otherFees}
+                        onChange={(e) => setForm({ ...form, otherFees: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Driver
+                      </label>
+                      <select
+                        value={form.driverId}
+                        onChange={(e) => handleDriverChange(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      >
+                        <option value="">Select Driver</option>
+                        {drivers.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Broker
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={form.brokerId}
+                          onChange={(e) => setForm({ ...form, brokerId: e.target.value })}
+                          className="flex-1 mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                        >
+                          <option value="">Select Broker</option>
+                          {brokers.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowCreateBroker(true)}
+                          className="mt-1"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        Truck
+                      </label>
+                      <select
+                        value={form.truckId}
+                        onChange={(e) => setForm({ ...form, truckId: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      >
+                        <option value="">Select Truck</option>
+                        {equipment.filter(e => e.equipment_type === 'truck').map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.identifier}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        Trailer
+                      </label>
+                      <select
+                        value={form.trailerId}
+                        onChange={(e) => setForm({ ...form, trailerId: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background"
+                      >
+                        <option value="">Select Trailer</option>
+                        {equipment.filter(e => e.equipment_type === 'trailer').map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.identifier}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Stops */}
+                <Card className="p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Stops</h3>
+                    <div className="flex gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowCreateBroker(true)}
-                        className="mt-1"
+                        onClick={() => addStop("pickup")}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-4 w-4 mr-1" />
+                        Pickup
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addStop("delivery")}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Delivery
                       </Button>
                     </div>
                   </div>
-                </div>
-              </Card>
 
-              {/* Stops */}
-              <Card className="p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Stops</h3>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addStop("pickup")}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Pickup
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addStop("delivery")}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Delivery
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {stops.map((stop, index) => (
-                    <div
-                      key={stop.id}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragEnd={handleDragEnd}
-                      className="border border-border rounded-lg p-4 bg-muted/30 cursor-move hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-start gap-3">
-                        <GripVertical className="h-5 w-5 text-muted-foreground mt-6" />
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              stop.type === "pickup"
-                                ? "bg-blue-500/10 text-blue-600"
-                                : "bg-emerald-500/10 text-emerald-600"
-                            }`}>
-                              {stop.type.toUpperCase()} #{index + 1}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeStop(stop.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="md:col-span-2">
-                              <AddressAutocomplete
-                                value={stop.address}
-                                onChange={(value) => updateStop(stop.id, "address", value)}
-                                placeholder="Street Address (start typing for suggestions)"
-                                className="text-sm"
-                                onCityStateZip={(city, state, zip) => {
-                                  console.log('Autocomplete callback:', { city, state, zip });
-                                  if (city) updateStop(stop.id, "city", city);
-                                  if (state) updateStop(stop.id, "state", state);
-                                  if (zip) updateStop(stop.id, "zip", zip);
+                  <div className="space-y-3">
+                    {stops.map((stop, index) => (
+                      <div
+                        key={stop.id}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                        className={`border border-border rounded-lg p-4 bg-muted/30 cursor-move hover:bg-muted/50 transition-all ${draggedIndex === index ? 'opacity-50 scale-95' : ''
+                          } ${draggedIndex !== null && draggedIndex !== index ? 'border-dashed border-2' : ''}`}
+                        onClick={() => {
+                          setEditingStopIndex(index);
+                          setShowEditStopModal(true);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <GripVertical className="h-5 w-5 text-muted-foreground mt-2 flex-shrink-0" />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-1 rounded font-medium ${stop.type === "pickup"
+                                  ? "bg-blue-500/10 text-blue-600"
+                                  : "bg-emerald-500/10 text-emerald-600"
+                                  }`}>
+                                  {stop.type === "pickup" ? "📦" : "🚚"} {stop.type.toUpperCase()} #{index + 1}
+                                </span>
+                                {stop.scheduledDate && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(stop.scheduledDate).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: 'numeric',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeStop(stop.id);
                                 }}
-                              />
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <input
-                              type="text"
-                              placeholder="City"
-                              value={stop.city}
-                              onChange={(e) => updateStop(stop.id, "city", e.target.value)}
-                              className="px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                            />
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                placeholder="State"
-                                value={stop.state}
-                                onChange={(e) => updateStop(stop.id, "state", e.target.value)}
-                                className="px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                              />
-                              <input
-                                type="text"
-                                placeholder="ZIP"
-                                value={stop.zip}
-                                onChange={(e) => updateStop(stop.id, "zip", e.target.value)}
-                                className="px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                              />
+
+                            <div className="text-sm space-y-1">
+                              <div className="font-medium text-foreground">
+                                {stop.address || <span className="text-muted-foreground italic">No address</span>}
+                              </div>
+                              {(stop.city || stop.state || stop.zip) && (
+                                <div className="text-muted-foreground">
+                                  {[stop.city, stop.state, stop.zip].filter(Boolean).join(', ')}
+                                </div>
+                              )}
+                              {stop.contactName && (
+                                <div className="text-muted-foreground">
+                                  👤 {stop.contactName} {stop.contactPhone && `• ${stop.contactPhone}`}
+                                </div>
+                              )}
+                              {stop.notes && (
+                                <div className="text-xs text-muted-foreground mt-1 p-2 bg-background/50 rounded">
+                                  {stop.notes}
+                                </div>
+                              )}
                             </div>
-                            <input
-                              type="datetime-local"
-                              value={stop.scheduledDate}
-                              onChange={(e) => updateStop(stop.id, "scheduledDate", e.target.value)}
-                              className="px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Contact Name"
-                              value={stop.contactName}
-                              onChange={(e) => updateStop(stop.id, "contactName", e.target.value)}
-                              className="px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Contact Phone"
-                              value={stop.contactPhone}
-                              onChange={(e) => updateStop(stop.id, "contactPhone", e.target.value)}
-                              className="px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <textarea
-                              placeholder="Notes / Special Instructions"
-                              value={stop.notes}
-                              onChange={(e) => updateStop(stop.id, "notes", e.target.value)}
-                              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                              rows={2}
-                            />
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
+                    ))}
+                  </div>
+                </Card>
 
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setViewMode("choice")}
-                  className="flex-1"
-                >
-                  Back
-                </Button>
-                <Button type="submit" disabled={creating} className="flex-1">
-                  {creating ? "Creating..." : "Create Load"}
-                </Button>
-              </div>
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setViewMode("choice")}
+                    className="flex-1"
+                  >
+                    Back
+                  </Button>
+                  <Button type="submit" disabled={creating} className="flex-1">
+                    {creating ? (editLoad ? "Updating..." : "Creating...") : (editLoad ? "Update Load" : "Create Load")}
+                  </Button>
+                </div>
               </form>
             </div>
           )}
@@ -956,7 +1133,220 @@ export default function EnhancedCreateLoadModal({
             </Card>
           </div>
         )}
+
+        {/* Edit Stop Modal - Large Modal for Better Overview */}
+        {showEditStopModal && editingStopIndex !== null && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowEditStopModal(false)}>
+            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-2xl font-bold">Edit Stop</h3>
+                    <span className={`text-sm px-3 py-1 rounded-full font-medium ${stops[editingStopIndex].type === "pickup"
+                      ? "bg-blue-500/10 text-blue-600"
+                      : "bg-emerald-500/10 text-emerald-600"
+                      }`}>
+                      {stops[editingStopIndex].type === "pickup" ? "📦" : "🚚"} {stops[editingStopIndex].type.toUpperCase()} #{editingStopIndex + 1}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowEditStopModal(false)}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Stop Type Toggle */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Stop Type</label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={stops[editingStopIndex].type === "pickup" ? "default" : "outline"}
+                        onClick={() => updateStop(stops[editingStopIndex].id, "type", "pickup")}
+                        className="flex-1"
+                      >
+                        📦 Pickup
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={stops[editingStopIndex].type === "delivery" ? "default" : "outline"}
+                        onClick={() => updateStop(stops[editingStopIndex].id, "type", "delivery")}
+                        className="flex-1"
+                      >
+                        🚚 Delivery
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Company/Location Name */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Company / Location Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., ExtraSpace Storage, Walmart DC"
+                      value={stops[editingStopIndex].contactName}
+                      onChange={(e) => updateStop(stops[editingStopIndex].id, "contactName", e.target.value)}
+                      className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                    />
+                  </div>
+
+                  {/* Address with Autocomplete */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Street Address *</label>
+                    <AddressAutocomplete
+                      value={stops[editingStopIndex].address}
+                      onChange={(value, details) => {
+                        const stopId = stops[editingStopIndex].id;
+                        updateStop(stopId, "address", value);
+                        
+                        // Auto-fill details from autocomplete selection
+                        if (details?.title) updateStop(stopId, "contactName", details.title);
+                        if (details?.phone) updateStop(stopId, "contactPhone", details.phone);
+                        if (details?.website) updateStop(stopId, "website", details.website);
+                        if (details?.hours) updateStop(stopId, "hours", details.hours);
+                      }}
+                      placeholder="Start typing address for suggestions..."
+                      className="text-base"
+                      onCityStateZip={(city, state, zip) => {
+                        const stopId = stops[editingStopIndex].id;
+                        if (city) updateStop(stopId, "city", city);
+                        if (state) updateStop(stopId, "state", state);
+                        if (zip) updateStop(stopId, "zip", zip);
+                      }}
+                    />
+                  </div>
+
+                  {/* City, State, ZIP Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-1">
+                      <label className="block text-sm font-medium mb-2">City *</label>
+                      <input
+                        type="text"
+                        placeholder="City"
+                        value={stops[editingStopIndex].city}
+                        onChange={(e) => updateStop(stops[editingStopIndex].id, "city", e.target.value)}
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">State *</label>
+                      <input
+                        type="text"
+                        placeholder="State"
+                        value={stops[editingStopIndex].state}
+                        onChange={(e) => updateStop(stops[editingStopIndex].id, "state", e.target.value)}
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">ZIP Code</label>
+                      <input
+                        type="text"
+                        placeholder="ZIP"
+                        value={stops[editingStopIndex].zip}
+                        onChange={(e) => updateStop(stops[editingStopIndex].id, "zip", e.target.value)}
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Date and Contact Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Scheduled Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={stops[editingStopIndex].scheduledDate}
+                        onChange={(e) => updateStop(stops[editingStopIndex].id, "scheduledDate", e.target.value)}
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Contact Phone</label>
+                      <input
+                        type="tel"
+                        placeholder="(555) 123-4567"
+                        value={stops[editingStopIndex].contactPhone}
+                        onChange={(e) => updateStop(stops[editingStopIndex].id, "contactPhone", e.target.value)}
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Website</label>
+                      <input
+                        type="text"
+                        placeholder="Company Website"
+                        value={stops[editingStopIndex].website}
+                        onChange={(e) => updateStop(stops[editingStopIndex].id, "website", e.target.value)}
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Hours of Operation</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., 8AM - 5PM"
+                        value={stops[editingStopIndex].hours}
+                        onChange={(e) => updateStop(stops[editingStopIndex].id, "hours", e.target.value)}
+                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Notes / Special Instructions</label>
+                    <textarea
+                      placeholder="Gate codes, delivery instructions, unit numbers, etc."
+                      value={stops[editingStopIndex].notes}
+                      onChange={(e) => updateStop(stops[editingStopIndex].id, "notes", e.target.value)}
+                      className="w-full px-4 py-3 border border-border rounded-lg bg-background text-base"
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4 border-t">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        removeStop(stops[editingStopIndex].id);
+                        setShowEditStopModal(false);
+                      }}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove Stop
+                    </Button>
+                    <div className="flex-1"></div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowEditStopModal(false)}
+                      className="min-w-[120px]"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setShowEditStopModal(false)}
+                      className="min-w-[120px]"
+                    >
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
-    </div>
+    </div >
   );
 }

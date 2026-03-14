@@ -10,6 +10,10 @@ class Carrier(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     internal_code = Column(String(100), unique=True, index=True, nullable=True)
+    logo_url = Column(String(500), nullable=True)
+    address = Column(String(500), nullable=True)
+    phone = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     users = relationship("User", back_populates="carrier")
@@ -17,6 +21,33 @@ class Carrier(Base):
     loads = relationship("Load", back_populates="carrier")
     equipment = relationship("Equipment", back_populates="carrier")
     maintenance = relationship("Maintenance", back_populates="carrier")
+    financial_settings = relationship("FinancialSettings", back_populates="carrier", uselist=False)
+
+
+class FinancialSettings(Base):
+    __tablename__ = "financial_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    carrier_id = Column(Integer, ForeignKey("carriers.id"), unique=True, nullable=False)
+    
+    # RPM Thresholds (dynamic break-even)
+    target_profit_rpm = Column(Float, default=1.60)
+    warning_rpm = Column(Float, default=1.19)
+    break_even_rpm = Column(Float, default=1.18)
+    
+    # Defaults for calculations
+    fuel_cost_per_gallon = Column(Float, default=4.00)
+    avg_mpg = Column(Float, default=6.5)
+    
+    # Monthly Fixed Costs (Estimates for break-even calc)
+    monthly_insurance = Column(Float, default=0.0)
+    monthly_truck_payment = Column(Float, default=0.0)
+    monthly_permits = Column(Float, default=0.0)
+    monthly_other_fixed = Column(Float, default=0.0)
+    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    carrier = relationship("Carrier", back_populates="financial_settings")
 
 
 class User(Base):
@@ -90,6 +121,8 @@ class Load(Base):
     carrier_id = Column(Integer, ForeignKey("carriers.id"), nullable=False, index=True)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
     driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True, index=True)
+    truck_id = Column(Integer, ForeignKey("equipment.id"), nullable=True, index=True)
+    trailer_id = Column(Integer, ForeignKey("equipment.id"), nullable=True, index=True)
     load_number = Column(String(100), nullable=False)
     status = Column(String(50), nullable=False, default="Created")
     broker_name = Column(String(200), nullable=True)
@@ -98,8 +131,22 @@ class Load(Base):
     broker_verified = Column(Boolean, default=False, nullable=True)
     broker_verified_at = Column(DateTime, nullable=True)
     po_number = Column(String(100), nullable=True)
+    
+    # Load Details
+    load_type = Column(String(50), nullable=False, default="Full")  # Full, Partial
+    weight = Column(Float, nullable=True)
+    pallets = Column(Integer, nullable=True)
+    length_ft = Column(Float, nullable=True)
+    
+    # Metrics
     rate_amount = Column(Float, nullable=True)
+    fuel_surcharge = Column(Float, nullable=True, default=0.0)
+    detention = Column(Float, nullable=True, default=0.0)
+    layover = Column(Float, nullable=True, default=0.0)
+    lumper = Column(Float, nullable=True, default=0.0)
+    other_fees = Column(Float, nullable=True, default=0.0)
     total_miles = Column(Float, nullable=True)
+    deadhead_miles = Column(Float, nullable=True, default=0.0)
     rate_per_mile = Column(Float, nullable=True)
     pickup_address = Column(Text, nullable=False)
     pickup_date = Column(DateTime, nullable=True)
@@ -180,6 +227,7 @@ class Expense(Base):
     equipment_id = Column(Integer, ForeignKey("equipment.id"), nullable=True, index=True)
     amount = Column(Integer, nullable=False, default=0)
     category = Column(String(100), nullable=True)
+    expense_type = Column(String(50), default="variable")  # fixed, variable
     description = Column(Text, nullable=True)
     status = Column(String(50), default="pending")  # pending, approved, rejected
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -330,6 +378,9 @@ class LoadStop(Base):
     longitude = Column(Float, nullable=True)
     date = Column(String(20), nullable=True)
     time = Column(String(20), nullable=True)
+    phone = Column(String(50), nullable=True)
+    website = Column(String(500), nullable=True)
+    hours = Column(String(200), nullable=True)
     miles_to_next_stop = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
