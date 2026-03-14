@@ -1,0 +1,49 @@
+{
+  "loginUrl": "https://ezloads.net/apps",
+  "seedPaths": [
+    "/loads",
+    "/drivers",
+    "/partners",
+    "/equipment",
+    "/fuel",
+    "/driver-payroll",
+    "/accounting",
+    "/reports",
+    "/tools",
+    "/safety",
+    "/ifta",
+    "/users",
+    "/data-library",
+    "/docs-exchange"
+  ],
+  "maxPages": 400,
+  "maxDepth": 5,
+  "concurrency": 2,
+  "delayMin": 700,
+  "delayMax": 1500,
+  "timeout": 30000,
+  "waitUntil": "networkidle",
+  "denylistPatterns": [
+    "logout",
+    "signout",
+    "delete",
+    "remove",
+    "approve",
+    "pay",
+    "upload",
+    "submit"
+  ],
+  "dangerousButtonText": [
+    "delete",
+    "remove",
+    "approve",
+    "pay",
+    "submit",
+    "upload",
+    "logout",
+    "sign out"
+  ],
+  "allowedDomains": [
+    "ezloads.net"
+  ]
+}

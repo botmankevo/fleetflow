@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { MapPin, Truck, User, DollarSign, Calendar, ArrowRight, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { getRPMColorClass, FinancialSettings } from '@/lib/financials';
 
 export interface Load {
   id: number;
@@ -18,6 +20,11 @@ export interface Load {
   driver?: {
     id: number;
     name: string;
+    pay_profile?: {
+      pay_type: string;
+      rate: number;
+      driver_kind: string;
+    };
   };
   customer?: {
     id: number;
@@ -38,17 +45,39 @@ export interface Load {
   delivery_date?: string;
   total_miles?: number;
   rate_per_mile?: number;
+  deadhead_miles?: number;
   notes?: string;
   po_number?: string;
-  created_at?: string;
-  updated_at?: string;
-  // Document attachments
+  load_type?: string;
+  weight?: number;
+  pallets?: number;
+  length_ft?: number;
+  fuel_surcharge?: number;
+  detention?: number;
+  layover?: number;
+  lumper?: number;
+  other_fees?: number;
+  stops?: Array<{
+    id: number;
+    stop_type: 'pickup' | 'delivery';
+    stop_number: number;
+    company?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    date?: string;
+    time?: string;
+    miles_to_next_stop?: number;
+  }>;
   rc_document?: string;
   bol_document?: string;
   pod_document?: string;
   invoice_document?: string;
   receipt_document?: string;
   other_document?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface LoadCardProps {
@@ -58,6 +87,7 @@ interface LoadCardProps {
   onDispatch?: (load: Load) => void;
   onDelete?: (load: Load) => void;
   className?: string;
+  settings?: FinancialSettings;
 }
 
 export function LoadCard({
@@ -66,7 +96,8 @@ export function LoadCard({
   onEdit,
   onDispatch,
   onDelete,
-  className
+  className,
+  settings
 }: LoadCardProps) {
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't trigger card click if clicking action buttons
@@ -88,6 +119,10 @@ export function LoadCard({
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getRPMColor = (rpm: number) => {
+    return getRPMColorClass(rpm, settings);
   };
 
   return (
@@ -120,7 +155,7 @@ export function LoadCard({
 
         <div className="flex items-center gap-2">
           <StatusBadge status={load.status} />
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -237,7 +272,7 @@ export function LoadCard({
             <Calendar className="h-4 w-4 text-gray-400" />
             <div className="min-w-0">
               <p className="text-xs text-gray-500 dark:text-gray-400">Per Mile</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className={cn("text-sm", getRPMColor(load.rate_per_mile))}>
                 {formatCurrency(load.rate_per_mile)}/mi
               </p>
             </div>

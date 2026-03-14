@@ -201,18 +201,18 @@ def calculate_rate_per_mile(rate_amount: float, total_miles: float) -> float:
     return round(rate_amount / total_miles, 2)
 
 
-def get_rate_color(rate_per_mile: float) -> str:
+def get_rate_color(rate_per_mile: float, target_profit: float = 1.60, warning_threshold: float = 1.19) -> str:
     """
     Get color code for rate per mile
     
     Returns:
-        'green' for excellent (>$2.50/mile)
-        'yellow' for acceptable ($1.50-$2.50/mile)
-        'red' for poor (<$1.50/mile)
+        'green' for good (>= target_profit)
+        'yellow' for ok (>= warning_threshold)
+        'red' for bad (< warning_threshold)
     """
-    if rate_per_mile >= 2.50:
+    if rate_per_mile >= target_profit:
         return "green"
-    elif rate_per_mile >= 1.50:
+    elif rate_per_mile >= warning_threshold:
         return "yellow"
     else:
         return "red"

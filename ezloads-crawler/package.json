@@ -1,0 +1,18 @@
+{
+  "name": "ezloads-crawler",
+  "version": "1.0.0",
+  "description": "Authenticated Playwright crawler for ezloads.net SPA dashboard",
+  "main": "index.js",
+  "scripts": {
+    "login": "node login-auto.js",
+    "login-manual": "node login.js",
+    "crawl": "node crawl.js",
+    "analyze": "node analyze.js"
+  },
+  "keywords": ["playwright", "crawler", "spa", "authenticated"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}

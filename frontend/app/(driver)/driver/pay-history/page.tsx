@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { apiFetch, getToken, getErrorMessage, getDriverId } from "@/lib/api";
+import { FileText } from "lucide-react";
 
 type Settlement = {
   settlement_id: number;
@@ -59,6 +60,29 @@ export default function DriverPayHistoryPage() {
       setError(getErrorMessage(err, "Failed to load pay history"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function downloadSettlementPDF(settlementId: number, payeeName: string) {
+    try {
+      const token = getToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/payroll/settlements/${settlementId}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (!response.ok) throw new Error("Failed to download PDF");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Settlement_${settlementId}_${payeeName.replace(/\s+/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to download settlement PDF"));
     }
   }
 
@@ -240,6 +264,7 @@ export default function DriverPayHistoryPage() {
           <SettlementDetailModal
             settlementId={selectedSettlement}
             onClose={() => setSelectedSettlement(null)}
+            onDownload={(id, name) => downloadSettlementPDF(id, name)}
           />
         )}
       </div>
@@ -248,7 +273,15 @@ export default function DriverPayHistoryPage() {
 }
 
 // Settlement Detail Modal Component
-function SettlementDetailModal({ settlementId, onClose }: { settlementId: number; onClose: () => void }) {
+function SettlementDetailModal({ 
+  settlementId, 
+  onClose,
+  onDownload
+}: { 
+  settlementId: number; 
+  onClose: () => void;
+  onDownload: (id: number, name: string) => void;
+}) {
   const [settlement, setSettlement] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -292,6 +325,19 @@ function SettlementDetailModal({ settlementId, onClose }: { settlementId: number
               ×
             </button>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="px-6 py-2 bg-white flex justify-end gap-3 border-b border-gray-100">
+           {settlement && (
+             <button
+               onClick={() => onDownload(settlementId, settlement.payee_name)}
+               className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium"
+             >
+               <FileText className="w-4 h-4" />
+               Download PDF Statement
+             </button>
+           )}
         </div>
 
         {/* Modal Content */}

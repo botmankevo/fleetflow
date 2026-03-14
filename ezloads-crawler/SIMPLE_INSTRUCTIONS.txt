@@ -1,0 +1,34 @@
+🕷️ EZLOADS CRAWLER - SIMPLE INSTRUCTIONS
+==========================================
+
+1. Open PowerShell
+
+2. Copy and paste this command:
+   cd "C:\Users\my self\.gemini\antigravity\scratch\MainTMS\ezloads-crawler"
+
+3. Run the crawler:
+   .\RUN_ALL.ps1
+
+4. When the browser opens:
+   - Log in to ezloads.net with your credentials
+   - Wait for the script to detect your login (automatic!)
+   - Browser will close automatically
+
+5. Wait 10-20 minutes while it crawls
+
+6. Come back and tell me "Crawler finished!"
+
+==========================================
+
+That's it! 🚀
+
+Results will be saved to: ./snapshot/
+
+You'll get:
+- 100+ screenshots
+- HTML of all pages
+- API endpoints
+- Implementation checklist
+- Complete sitemap
+
+After it finishes, I'll help you analyze the results and build the features!

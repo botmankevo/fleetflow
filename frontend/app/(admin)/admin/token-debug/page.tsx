@@ -6,7 +6,7 @@ export default function TokenDebugPage() {
   const [tokenInfo, setTokenInfo] = useState<any>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('fleetflow_token');
+    const token = localStorage.getItem('maintms_token');
     
     if (token) {
       try {

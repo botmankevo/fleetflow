@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, getErrorMessage, getToken } from "../../../../lib/api";
-import { DollarSign, Users, TrendingUp, ChevronRight } from "lucide-react";
+import { DollarSign, Users, TrendingUp, ChevronRight, FileText } from "lucide-react";
 
 type Payee = {
   id: number;
@@ -32,6 +32,7 @@ type LedgerLine = {
   description: string;
   amount: number;
   created_at: string;
+  locked_at: string | null;
 };
 
 type PayeeDetail = {
@@ -227,6 +228,33 @@ export default function PayrollPage() {
       loadData();
     } catch (err) {
       setError(getErrorMessage(err, "Failed to void settlement"));
+    }
+  }
+
+  async function downloadSettlementPDF(settlementId: number, payeeName: string) {
+    try {
+      setLoading(true);
+      const token = getToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"}/payroll/settlements/${settlementId}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (!response.ok) throw new Error("Failed to download PDF");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Settlement_${settlementId}_${payeeName.replace(/\s+/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setMessage("PDF Statement downloaded successfully");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to download settlement PDF"));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -428,6 +456,13 @@ export default function PayrollPage() {
                           >
                             View
                           </button>
+                          <button
+                            onClick={() => downloadSettlementPDF(settlement.id, payee?.name || `Payee_${settlement.payee_id}`)}
+                            className="text-gray-600 hover:text-gray-900 mr-3"
+                            title="Download PDF Statement"
+                          >
+                            <FileText className="w-4 h-4 inline" />
+                          </button>
                           {settlement.status === "draft" && (
                             <>
                               <button
@@ -497,12 +532,21 @@ export default function PayrollPage() {
                   ${selectedSettlement.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-sm text-gray-600">{selectedSettlement.lines.length} line items</p>
-                <button
-                  onClick={() => setSelectedSettlement(null)}
-                  className="mt-2 text-sm text-gray-600 hover:text-gray-900"
-                >
-                  Close
-                </button>
+                <div className="flex gap-2 mt-2 justify-end">
+                  <button
+                    onClick={() => downloadSettlementPDF(selectedSettlement.settlement_id, selectedSettlement.payee_name)}
+                    className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    PDF Statement
+                  </button>
+                  <button
+                    onClick={() => setSelectedSettlement(null)}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm text-gray-600 hover:text-gray-900"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -541,7 +585,7 @@ export default function PayrollPage() {
                       <div className="text-sm text-gray-900">{line.description || '-'}</div>
                       {line.load_info && (
                         <div className="text-xs text-gray-500 mt-1">
-                          {line.load_info.pickup_address} → {line.load_info.delivery_address}
+                          {line.load_info.pickup_location} → {line.load_info.delivery_location}
                         </div>
                       )}
                     </td>

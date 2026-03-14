@@ -16,9 +16,11 @@ from app.schemas.payroll import (
     DriverAdditionalPayeeCreate,
     RecurringSettlementItemCreate,
 )
+from fastapi.responses import StreamingResponse
 from app.services.email_service import EmailService
 from app.services.payroll_reports import payroll_reports
 from app.services.quickbooks_service import quickbooks_service
+from app.services.pdf_generator import PDFGenerator
 
 router = APIRouter(prefix="/payroll", tags=["payroll"])
 
@@ -452,6 +454,85 @@ def get_settlement_detail(settlement_id: int, token: dict = Depends(verify_token
         "lines": line_items,
         "total": sum(float(line.amount) for line in lines)
     }
+
+
+@router.get("/settlements/{settlement_id}/pdf")
+def download_settlement_pdf(
+    settlement_id: int, 
+    token: dict = Depends(verify_token), 
+    db: Session = Depends(get_db)
+):
+    """Generate and download settlement PDF statement"""
+    carrier_id = token.get("carrier_id")
+    if not carrier_id:
+        raise HTTPException(status_code=400, detail="Missing carrier_id")
+    
+    settlement = db.query(models.PayrollSettlement).filter(
+        models.PayrollSettlement.id == settlement_id
+    ).first()
+    
+    if not settlement:
+        raise HTTPException(status_code=404, detail="Settlement not found")
+    
+    # Verify settlement belongs to carrier
+    payee = db.query(models.Payee).filter(models.Payee.id == settlement.payee_id).first()
+    if not payee or payee.carrier_id != carrier_id:
+        raise HTTPException(status_code=404, detail="Settlement not found")
+    
+    # Get carrier details for header
+    carrier = db.query(models.Carrier).filter(models.Carrier.id == carrier_id).first()
+    carrier_info = {
+        "company_name": carrier.name,
+        "address": carrier.address or "123 Trucking Way, Logistic City, ST 12345",
+        "phone": carrier.phone or "(555) 010-9988",
+        "email": carrier.email or "operations@maintms.ai",
+        "logo_url": carrier.logo_url
+    }
+
+    # Get ledger lines
+    lines = db.query(models.SettlementLedgerLine).filter(
+        models.SettlementLedgerLine.settlement_id == settlement_id
+    ).all()
+    
+    line_items = []
+    for line in lines:
+        load_info = None
+        if line.load_id:
+            load = db.query(models.Load).filter(models.Load.id == line.load_id).first()
+            if load:
+                load_info = {
+                    "load_number": load.load_number,
+                }
+        
+        line_items.append({
+            "category": line.category,
+            "description": line.description,
+            "amount": float(line.amount),
+            "load_info": load_info
+        })
+    
+    settlement_data = {
+        "id": settlement.id,
+        "period_start": settlement.period_start.strftime('%m/%d/%Y'),
+        "period_end": settlement.period_end.strftime('%m/%d/%Y'),
+        "status": settlement.status,
+        "lines": line_items
+    }
+    
+    payee_info = {
+        "name": payee.name
+    }
+    
+    pdf_gen = PDFGenerator()
+    pdf_buffer = pdf_gen.generate_settlement_pdf(settlement_data, carrier_info, payee_info)
+    
+    filename = f"Settlement_{settlement_id}_{payee.name.replace(' ', '_')}.pdf"
+    
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 @router.post("/settlements", response_model=SettlementStatusResponse)

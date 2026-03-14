@@ -10,6 +10,7 @@ class ExpenseBase(BaseModel):
     occurred_at: Optional[datetime] = None
     receipt_link: Optional[str] = None
     driver_id: Optional[int] = None
+    expense_type: Optional[str] = "variable"
 
 
 class ExpenseCreate(ExpenseBase):

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
+import DriverDetailModal from "@/components/drivers/DriverDetailModal";
 
 interface Driver {
   id: number;
@@ -28,6 +29,7 @@ export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "compliant" | "expiring" | "non-compliant">("all");
+  const [selectedDriver, setSelectedDriver] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     loadDrivers();
@@ -47,7 +49,7 @@ export default function DriversPage() {
   const getDriverDocStatus = (driver: Driver): DocumentStatus => {
     const REQUIRED_DOCS = ["CDL", "Medical Card", "Drug Test", "MVR", "Application"];
     const docs = driver.documents || [];
-    
+
     let expired = 0;
     let expiring_soon = 0;
     let active = 0;
@@ -177,7 +179,15 @@ export default function DriversPage() {
       {/* Drivers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredDrivers.map(driver => (
-          <DriverCard key={driver.id} driver={driver} docStatus={getDriverDocStatus(driver)} />
+          <DriverCard
+            key={driver.id}
+            driver={driver}
+            docStatus={getDriverDocStatus(driver)}
+            onViewDetails={() => {
+              const name = driver.name || `${driver.first_name || ""} ${driver.last_name || ""}`.trim() || "Unknown Driver";
+              setSelectedDriver({ id: driver.id, name });
+            }}
+          />
         ))}
       </div>
 
@@ -189,6 +199,15 @@ export default function DriversPage() {
             {filter !== "all" ? `No ${filter} drivers` : "Add your first driver to get started"}
           </p>
         </div>
+      )}
+
+      {/* Driver Detail Modal */}
+      {selectedDriver && (
+        <DriverDetailModal
+          driverId={selectedDriver.id}
+          driverName={selectedDriver.name}
+          onClose={() => setSelectedDriver(null)}
+        />
       )}
     </main>
   );
@@ -205,9 +224,8 @@ function StatCard({ icon, label, value, color, onClick, active }: any) {
   return (
     <button
       onClick={onClick}
-      className={`p-6 rounded-xl border-2 transition-all hover:shadow-lg ${
-        active ? colors[color as keyof typeof colors] + " ring-2 ring-offset-2 ring-" + color : "bg-card border hover:border-primary/20"
-      }`}
+      className={`p-6 rounded-xl border-2 transition-all hover:shadow-lg ${active ? colors[color as keyof typeof colors] + " ring-2 ring-offset-2 ring-" + color : "bg-card border hover:border-primary/20"
+        }`}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-3xl">{icon}</span>
@@ -218,7 +236,7 @@ function StatCard({ icon, label, value, color, onClick, active }: any) {
   );
 }
 
-function DriverCard({ driver, docStatus }: { driver: Driver; docStatus: DocumentStatus }) {
+function DriverCard({ driver, docStatus, onViewDetails }: { driver: Driver; docStatus: DocumentStatus; onViewDetails: () => void }) {
   const name = driver.name || `${driver.first_name || ""} ${driver.last_name || ""}`.trim() || "Unknown Driver";
   const complianceStatus = docStatus.expired > 0 ? "non-compliant" : docStatus.expiring_soon > 0 || docStatus.missing > 0 ? "expiring" : "compliant";
 
@@ -302,8 +320,11 @@ function DriverCard({ driver, docStatus }: { driver: Driver; docStatus: Document
 
       {/* Action Buttons */}
       <div className="flex gap-2 mt-4 pt-4 border-t">
-        <button className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-semibold">
-          View Details
+        <button
+          onClick={onViewDetails}
+          className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-semibold"
+        >
+          Pay Settings
         </button>
         {complianceStatus !== "compliant" && (
           <button className="px-3 py-2 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 transition-colors text-sm font-semibold">

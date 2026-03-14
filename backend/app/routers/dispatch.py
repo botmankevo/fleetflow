@@ -171,6 +171,10 @@ def get_loads_by_status(
             "created_at": load.created_at.isoformat(),
             "broker_name": load.broker_name,
             "notes": load.notes,
+            "rate_per_mile": load.rate_per_mile,
+            "total_miles": load.total_miles,
+            "deadhead_miles": load.deadhead_miles,
+            "load_type": load.load_type,
         }
         
         if load.status in ["Available", "Created"]:

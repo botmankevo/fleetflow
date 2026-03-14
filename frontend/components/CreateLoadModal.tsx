@@ -4,7 +4,7 @@ import { useState } from "react";
 import EnhancedModal from "./ui/enhanced-modal";
 import { Button } from "./ui/button";
 import { Upload, FileText, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { apiFetch, getToken } from "../lib/api";
+import { apiFetch, getToken, API_BASE } from "../lib/api";
 
 interface CreateLoadModalProps {
     isOpen: boolean;
@@ -53,19 +53,10 @@ export default function CreateLoadModal({
             const formData = new FormData();
             formData.append("file", file);
 
-            const response = await fetch("http://localhost:8000/loads/parse-rate-con", {
+            const data = await apiFetch("/loads/parse-rate-con", {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
                 body: formData,
             });
-
-            if (!response.ok) {
-                throw new Error("Failed to parse rate confirmation");
-            }
-
-            const data = await response.json();
             console.log("Extracted data from API:", data);
             setExtractedData(data);
 

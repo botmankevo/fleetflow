@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Upload, FileText, CheckCircle, X } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { getToken, apiFetch } from '@/lib/api';
 
 interface DocumentUploadModalProps {
   isOpen: boolean;
@@ -58,24 +58,10 @@ export function DocumentUploadModal({
       formData.append('file', file);
       formData.append('doc_type', docType);
       
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Not authenticated. Please log in again.');
-      }
-
-      const response = await fetch(`http://localhost:8000/document-uploads/loads/${loadId}/upload`, {
+      const data = await apiFetch(`/document-uploads/loads/${loadId}/upload`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData
       });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const data = await response.json();
       
       setSuccess(true);
       setTimeout(() => {

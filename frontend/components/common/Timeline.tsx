@@ -4,7 +4,7 @@ import { MapPin, Package, Calendar, Clock } from 'lucide-react';
 
 export interface TimelineStop {
   id?: string | number;
-  type: 'pickup' | 'delivery';
+  type: 'pickup' | 'delivery' | 'stop';
   location: string;
   city?: string;
   state?: string;
@@ -45,10 +45,13 @@ export function Timeline({
     return 'bg-gray-300 border-gray-300';
   };
 
-  const getTypeColor = (type: 'pickup' | 'delivery') => {
-    return type === 'pickup' 
-      ? 'bg-blue-100 text-blue-700 border-blue-300' 
-      : 'bg-green-100 text-green-700 border-green-300';
+  const getTypeColor = (type: 'pickup' | 'delivery' | 'stop') => {
+    switch(type) {
+      case 'pickup': return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'delivery': return 'bg-green-100 text-green-700 border-green-300';
+      case 'stop': return 'bg-amber-100 text-amber-700 border-amber-300';
+      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+    }
   };
 
   const formatDistance = (miles?: number) => {
@@ -92,7 +95,7 @@ export function Timeline({
                         'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
                         getTypeColor(stop.type)
                       )}>
-                        #{index + 1} {stop.type === 'pickup' ? 'Pickup' : 'Delivery'}
+                        #{index + 1} {stop.type === 'pickup' ? 'Pickup' : stop.type === 'delivery' ? 'Delivery' : 'Stop'}
                       </span>
                     </div>
                     <h4 className="text-sm font-semibold text-gray-900">
@@ -179,7 +182,7 @@ export function Timeline({
                     'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border',
                     getTypeColor(stop.type)
                   )}>
-                    #{index + 1} {stop.type === 'pickup' ? '📦 Pickup' : '🚛 Delivery'}
+                    #{index + 1} {stop.type === 'pickup' ? '📦 Pickup' : stop.type === 'delivery' ? '🚛 Delivery' : '📍 Stop'}
                   </span>
                   <div className={cn(
                     'w-3 h-3 rounded-full border-2 transition-all',

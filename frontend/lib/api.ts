@@ -1,12 +1,14 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+export const API_BASE = (typeof window !== "undefined") 
+  ? "/api" 
+  : (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000");
 
 export function setToken(token: string) {
-  if (typeof window !== "undefined") localStorage.setItem("fleetflow_token", token);
+  if (typeof window !== "undefined") localStorage.setItem("maintms_token", token);
 }
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("fleetflow_token");
+  return localStorage.getItem("maintms_token");
 }
 
 /**
@@ -48,9 +50,22 @@ export function getDriverId(): number | null {
   return decoded?.driver_id || null;
 }
 
-export async function apiFetch(path: string, init: RequestInit = {}) {
-  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+export async function apiFetch(path: string, init: RequestInit & { params?: Record<string, any> } = {}) {
+  let url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
   
+  if (init.params) {
+    const searchParams = new URLSearchParams();
+    Object.entries(init.params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
+    });
+    const queryString = searchParams.toString();
+    if (queryString) {
+      url += (url.includes("?") ? "&" : "?") + queryString;
+    }
+  }
+
   // Get token and add Authorization header
   const token = getToken();
   const headers = new Headers(init.headers || {});

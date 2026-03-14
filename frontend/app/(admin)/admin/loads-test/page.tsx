@@ -18,7 +18,7 @@ export default function LoadsTestPage() {
       try {
         addLog('🔍 Starting fetch...');
         
-        const token = localStorage.getItem('fleetflow_token'); // Fixed: correct key
+        const token = localStorage.getItem('maintms_token'); // Fixed: correct key
         addLog(`🔑 Token: ${token ? 'EXISTS (' + token.substring(0, 20) + '...)' : '❌ MISSING'}`);
         
         const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';

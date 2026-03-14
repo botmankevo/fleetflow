@@ -22,59 +22,82 @@ def _percent(amount: float, rate: float) -> float:
 
 def compute_load_ledger_lines(load: models.Load) -> List[LedgerLineDraft]:
     lines: List[LedgerLineDraft] = []
-    rate_amount = load.rate_amount or 0.0
+    base_freight = load.rate_amount or 0.0
+    fsc = load.fuel_surcharge or 0.0
+    miles = load.total_miles or 0.0
 
     driver = load.driver
     if not driver or not driver.payee_id:
         return lines
 
     pay_profile = driver.pay_profile
-    if pay_profile and pay_profile.pay_type == "percent":
-        driver_pay = _percent(rate_amount, pay_profile.rate)
-        lines.append(
-            LedgerLineDraft(
-                payee_id=driver.payee_id,
-                category="base_pay",
-                description=f"Freight % ({pay_profile.rate:.0f}%)",
-                amount=driver_pay,
-            )
-        )
-    else:
-        driver_pay = 0.0
+    base_pay = 0.0
+    
+    if pay_profile:
+        if pay_profile.pay_type == "percent":
+            base_pay = _percent(base_freight, pay_profile.rate)
+            description = f"Freight % ({pay_profile.rate:.0f}%)"
+        elif pay_profile.pay_type == "per_mile":
+            base_pay = round(miles * pay_profile.rate, 2)
+            description = f"Mileage Pay ({miles} mi @ ${pay_profile.rate:.2f})"
+        elif pay_profile.pay_type == "flat":
+            base_pay = pay_profile.rate
+            description = f"Flat Pay Rate"
+        else:
+            base_pay = 0.0
+            description = "Unknown Pay Type"
 
-    # Additional payees (equipment owner, etc.)
+        if base_pay > 0:
+            lines.append(
+                LedgerLineDraft(
+                    payee_id=driver.payee_id,
+                    category="base_pay",
+                    description=description,
+                    amount=base_pay,
+                )
+            )
+
+        # FSC Pass-through (usually 100% for owner-ops, or a fixed amount for company drivers)
+        if fsc > 0:
+            fsc_pay = fsc if pay_profile.driver_kind == "owner_operator" else _percent(fsc, 100.0) # For now, 100%
+            lines.append(
+                LedgerLineDraft(
+                    payee_id=driver.payee_id,
+                    category="fsc_pass_through",
+                    description="Fuel Surcharge (100%)",
+                    amount=fsc_pay,
+                )
+            )
+
+    # Accessorials Pass-through (Detention, Layover, Lumper)
+    accessorials = [
+        ("detention", load.detention),
+        ("layover", load.layover),
+        ("lumper", load.lumper),
+        ("other_fees", load.other_fees)
+    ]
+    for cat, amount in accessorials:
+        if amount and amount > 0:
+            lines.append(
+                LedgerLineDraft(
+                    payee_id=driver.payee_id,
+                    category=cat,
+                    description=cat.replace("_", " ").title() + " Reimbursement",
+                    amount=round(amount, 2),
+                )
+            )
+
+    # Additional payees logic (Simplified for now, usually for owner-ops with company drivers)
     for additional in driver.additional_payees:
         if not additional.active:
             continue
-        owner_pay = _percent(rate_amount, additional.pay_rate_percent)
+        owner_pay = _percent(base_freight, additional.pay_rate_percent)
         lines.append(
             LedgerLineDraft(
                 payee_id=additional.payee_id,
                 category="base_pay",
                 description=f"OP net freight ({additional.pay_rate_percent:.0f}%)",
                 amount=owner_pay,
-            )
-        )
-
-        # Pass-through wages for company driver
-        if pay_profile and pay_profile.driver_kind == "company_driver" and driver_pay > 0:
-            lines.append(
-                LedgerLineDraft(
-                    payee_id=additional.payee_id,
-                    category="pass_through",
-                    description="Company driver wages pass-through",
-                    amount=-driver_pay,
-                )
-            )
-
-    # Load charges as adjustments to driver payee
-    for charge in load.charges:
-        lines.append(
-            LedgerLineDraft(
-                payee_id=driver.payee_id,
-                category=charge.category,
-                description=charge.description or charge.category.replace("_", " ").title(),
-                amount=round(charge.amount, 2),
             )
         )
 

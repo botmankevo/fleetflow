@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { DataTable, Column } from '@/components/common/DataTable';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Load } from './LoadCard';
@@ -66,6 +67,20 @@ export function LoadListView({
       render: (value) => <StatusBadge status={value} size="sm" />
     },
     {
+      key: 'load_type',
+      label: 'Type',
+      sortable: true,
+      width: '80px',
+      render: (value) => (
+        <span className={cn(
+          "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+          value === 'Partial' ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+        )}>
+          {value || 'Full'}
+        </span>
+      )
+    },
+    {
       key: 'pickup_location',
       label: 'Pickup',
       sortable: true,
@@ -124,18 +139,26 @@ export function LoadListView({
       sortable: true,
       width: '100px',
       align: 'right',
-      render: (value, row) => (
-        <div className="text-right">
-          <p className="text-sm font-semibold text-green-600">
-            {formatCurrency(row.rate_amount || value)}
-          </p>
-          {row.rate_per_mile && (
-            <p className="text-xs text-gray-500">
-              {formatCurrency(row.rate_per_mile)}/mi
+      render: (value, row) => {
+        const gross = (row.broker_rate ?? row.rate_amount ?? 0) + 
+                     (row.fuel_surcharge ?? 0) + 
+                     (row.detention ?? 0) + 
+                     (row.layover ?? 0) + 
+                     (row.lumper ?? 0) + 
+                     (row.other_fees ?? 0);
+        return (
+          <div className="text-right">
+            <p className="text-sm font-bold text-green-600">
+              {formatCurrency(gross)}
             </p>
-          )}
-        </div>
-      )
+            {row.rate_per_mile && (
+              <p className="text-[10px] text-gray-500">
+                {formatCurrency(row.rate_per_mile)}/mi
+              </p>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: 'broker_name',
@@ -162,7 +185,7 @@ export function LoadListView({
           { key: 'rcpt', label: 'RCP', field: row.receipt_document, title: 'Receipt' },
           { key: 'other', label: 'OTH', field: row.other_document, title: 'Other' },
         ];
-        
+
         return (
           <div className="grid grid-cols-3 gap-1 py-1" onClick={(e) => e.stopPropagation()}>
             {docs.map(doc => (
@@ -184,8 +207,8 @@ export function LoadListView({
                 className={`
                   w-6 h-6 rounded text-[9px] font-semibold flex items-center justify-center
                   transition-colors
-                  ${doc.field 
-                    ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300' 
+                  ${doc.field
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
                     : 'bg-gray-100 text-gray-400 hover:bg-blue-50 hover:text-blue-600 border border-gray-200'
                   }
                 `}
@@ -213,7 +236,7 @@ export function LoadListView({
         striped
         hoverable
       />
-      
+
       {uploadModal && (
         <DocumentUploadModal
           isOpen={uploadModal.isOpen}

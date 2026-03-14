@@ -22,6 +22,33 @@ class DocumentApprovalRequest(BaseModel):
     notes: Optional[str] = None
 
 
+@router.post("/upload")
+async def upload_generic_document(
+    file: UploadFile = File(...),
+    doc_type: Optional[str] = Form("OTH"),
+    token: dict = Depends(verify_token)
+):
+    """
+    Generic upload for documents not yet linked to a load.
+    Used during load creation.
+    """
+    carrier_id = token.get("carrier_id")
+    
+    # In a real app, we'd upload to S3/Dropbox here.
+    # For now, we simulate and return a URL.
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    
+    # Use a dummy URL for now as per existing logic in this file
+    file_url = f"/api/uploads/temp/{unique_filename}"
+    
+    return {
+        "success": True,
+        "file_url": file_url,
+        "filename": file.filename
+    }
+
+
 @router.post("/loads/{load_id}/upload")
 async def upload_load_document(
     load_id: int,

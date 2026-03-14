@@ -44,6 +44,7 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import { MainTMSLogo } from "@/components/MainTMSLogo";
 
 const navGroups = [
@@ -58,7 +59,6 @@ const navGroups = [
         label: "Operations",
         items: [
             { title: "Loads", url: "/admin/loads", icon: Package },
-            { title: "Dispatch", url: "/admin/dispatch", icon: MapPin },
             { title: "Tracking", url: "/admin/tracking", icon: Map },
             { title: "Loadboards", url: "/admin/loadboards", icon: Search },
         ],
@@ -75,6 +75,7 @@ const navGroups = [
     {
         label: "Financial",
         items: [
+            { title: "Profit & Loss", url: "/admin/financials/profit-loss", icon: BarChart3 },
             { title: "Invoices", url: "/admin/invoices", icon: FileText },
             { title: "Expenses", url: "/admin/expenses", icon: Receipt },
             { title: "Payroll", url: "/admin/payroll", icon: DollarSign },
@@ -90,7 +91,7 @@ const navGroups = [
             { title: "Safety", url: "/admin/safety", icon: Shield },
             { title: "IFTA", url: "/admin/ifta", icon: FileSpreadsheet },
             { title: "Docs Exchange", url: "/admin/docs-exchange", icon: FolderOpen },
-            { title: "POD History", url: "/admin/pod-history", icon: Camera },
+            { title: "POD History", url: "/admin/pod", icon: Camera },
         ],
     },
     {
@@ -102,60 +103,63 @@ const navGroups = [
             { title: "Users", url: "/admin/users", icon: UserCog },
         ],
     },
-    {
-        label: "Settings", // Usually in footer, but keeping consistent structure
-        items: [
-            { title: "Settings", url: "/admin/settings", icon: Settings },
-        ]
-    }
 ];
 
 export function AppSidebar() {
-    const pathname = usePathname();
     const { state } = useSidebar();
     const collapsed = state === "collapsed";
+    const pathname = usePathname();
 
     return (
-        <Sidebar collapsible="icon" className="border-r border-sidebar-border h-screen sticky top-0">
-            <SidebarHeader className="p-4 border-b border-sidebar-border">
-                <div className="flex items-center gap-3 pl-1">
-                    <Link href="/admin" className="block w-full">
-                        {!collapsed ? <MainTMSLogo /> : <MainTMSLogo variant="ai-only" />}
-                    </Link>
-                </div>
+        <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+            <SidebarHeader className="p-4 border-b border-sidebar-border flex justify-center items-center h-14">
+                {collapsed ? (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+                        <Truck className="h-4 w-4 text-white" />
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center w-full px-2">
+                        <MainTMSLogo width={140} height={45} />
+                    </div>
+                )}
             </SidebarHeader>
 
-            <SidebarContent className="scrollbar-thin py-2">
-                {navGroups.slice(0, -1).map((group) => {
-                    // Check if any item in group is active to open accordion by default
-                    const isGroupActive = group.items.some((item) => pathname === item.url);
-
+            <SidebarContent className="scrollbar-thin scroll-smooth pt-4 overflow-y-auto">
+                {navGroups.map((group) => {
+                    const isGroupActive = group.items.some((item) => pathname === item.url || pathname.startsWith(item.url + '/'));
                     return (
-                        <Collapsible key={group.label} defaultOpen={true} className="group/collapsible">
+                        <Collapsible key={group.label} defaultOpen={true}>
                             <SidebarGroup>
-                                <SidebarGroupLabel asChild>
-                                    <CollapsibleTrigger className="w-full flex items-center justify-between text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider hover:text-sidebar-foreground transition-colors">
-                                        {group.label}
-                                        <ChevronDown className="ml-auto w-3 h-3 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                                    </CollapsibleTrigger>
-                                </SidebarGroupLabel>
+                                <CollapsibleTrigger className="w-full">
+                                    <SidebarGroupLabel className="flex items-center justify-between px-3 text-[10px] uppercase tracking-wider text-sidebar-muted font-semibold group-data-[state=collapsed]:hidden">
+                                        {!collapsed && group.label}
+                                        {!collapsed && <ChevronDown className="h-3 w-3" />}
+                                    </SidebarGroupLabel>
+                                </CollapsibleTrigger>
                                 <CollapsibleContent>
                                     <SidebarGroupContent>
-                                        <SidebarMenu>
-                                            {group.items.map((item) => (
-                                                <SidebarMenuItem key={item.title}>
-                                                    <SidebarMenuButton
-                                                        asChild
-                                                        isActive={pathname === item.url}
-                                                        tooltip={item.title}
-                                                    >
-                                                        <Link href={item.url} className="flex items-center gap-2">
-                                                            <item.icon className="h-4 w-4" />
-                                                            <span>{item.title}</span>
-                                                        </Link>
-                                                    </SidebarMenuButton>
-                                                </SidebarMenuItem>
-                                            ))}
+                                        <SidebarMenu className="gap-1 mt-1">
+                                            {group.items.map((item) => {
+                                                const isActive = pathname === item.url || (item.url !== '/admin' && pathname.startsWith(item.url));
+                                                return (
+                                                    <SidebarMenuItem key={item.title}>
+                                                        <SidebarMenuButton
+                                                            asChild
+                                                            isActive={isActive}
+                                                            tooltip={item.title}
+                                                            className={cn(
+                                                                "transition-colors",
+                                                                isActive ? "bg-blue-600/10 text-blue-600 dark:bg-blue-600/20 dark:text-blue-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                            )}
+                                                        >
+                                                            <Link href={item.url} className="flex items-center gap-3">
+                                                                <item.icon className={cn("h-4 w-4 shrink-0", isActive && "text-blue-600 dark:text-blue-400")} />
+                                                                <span className="truncate">{item.title}</span>
+                                                            </Link>
+                                                        </SidebarMenuButton>
+                                                    </SidebarMenuItem>
+                                                );
+                                            })}
                                         </SidebarMenu>
                                     </SidebarGroupContent>
                                 </CollapsibleContent>
@@ -168,8 +172,16 @@ export function AppSidebar() {
             <SidebarFooter className="border-t border-sidebar-border p-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild tooltip="Settings" isActive={pathname === "/admin/settings"}>
-                            <Link href="/admin/settings" className="flex items-center gap-2">
+                        <SidebarMenuButton asChild tooltip="Settings">
+                            <Link
+                                href="/admin/settings"
+                                className={cn(
+                                    "flex items-center gap-3",
+                                    pathname === "/admin/settings"
+                                        ? "bg-blue-600/10 text-blue-600 dark:bg-blue-600/20 dark:text-blue-400 font-medium"
+                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                )}
+                            >
                                 <Settings className="h-4 w-4" />
                                 <span>Settings</span>
                             </Link>

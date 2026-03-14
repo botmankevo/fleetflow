@@ -126,7 +126,7 @@ export default function LoadBoardsPage() {
               <Label>Origin Radius (miles)</Label>
               <Select
                 value={searchCriteria.origin_radius}
-                onValueChange={(value) => handleInputChange("origin_radius", value)}
+                onChange={(e) => handleInputChange("origin_radius", (e.target as HTMLSelectElement).value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -162,7 +162,7 @@ export default function LoadBoardsPage() {
               <Label>Destination Radius (miles)</Label>
               <Select
                 value={searchCriteria.destination_radius}
-                onValueChange={(value) => handleInputChange("destination_radius", value)}
+                onChange={(e) => handleInputChange("destination_radius", (e.target as HTMLSelectElement).value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -181,7 +181,7 @@ export default function LoadBoardsPage() {
               <Label>Equipment Type</Label>
               <Select
                 value={searchCriteria.equipment_type}
-                onValueChange={(value) => handleInputChange("equipment_type", value)}
+                onChange={(e) => handleInputChange("equipment_type", (e.target as HTMLSelectElement).value)}
               >
                 <SelectTrigger>
                   <SelectValue />

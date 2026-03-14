@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "./ThemeToggle";
+import ThemeToggle from "./ThemeToggle";
 import { cn } from "../lib/utils";
 import { 
   LayoutDashboard, 
@@ -139,7 +139,7 @@ export default function Sidebar() {
                                 {group.title}
                             </h4>
                             <div className="space-y-0.5">
-                                {group.items.map((item) => {
+                                {group.items.map((item: { name: string; href: string; icon: any; badge?: string }) => {
                                     const Icon = item.icon;
                                     const active = pathname === item.href;
                                     return (

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, loads, pod, maintenance, expenses, drivers, maps, users, equipment, analytics, payroll, mapbox_routes, fmcsa_routes, dispatch, customers, invoices, ai, customer_portal, accounting, quickbooks, communications, documents, document_uploads, loadboards, motive, safety, tolls, vendors, ifta
+from app.routers import auth, financials, loads, pod, maintenance, expenses, drivers, maps, users, equipment, analytics, payroll, mapbox_routes, fmcsa_routes, dispatch, customers, invoices, ai, customer_portal, accounting, quickbooks, communications, documents, document_uploads, loadboards, motive, safety, tolls, vendors, ifta
 # from app.routers import imports  # Has dependency issues, skipping for now
 
 app = FastAPI(title="MAIN TMS", version="1.0.0")
@@ -44,6 +44,7 @@ app.include_router(safety.router)
 app.include_router(tolls.router)
 app.include_router(vendors.router)
 app.include_router(ifta.router)
+app.include_router(financials.router)
 
 
 @app.get("/health")

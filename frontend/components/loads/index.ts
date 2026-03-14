@@ -4,8 +4,9 @@ export type { Load } from './LoadCard';
 
 export { LoadListView } from './LoadListView';
 
-export { LoadFilters } from './LoadFilters';
-export type { LoadFilterValues } from './LoadFilters';
+// LoadFilters component removed - to be recreated
+// export { LoadFilters } from './LoadFilters';
+// export type { LoadFilterValues } from './LoadFilters';
 
 export { LoadDetailModal } from './LoadDetailModal';
 

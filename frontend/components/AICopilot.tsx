@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Bot, X, Send, Sparkles, Zap, TrendingUp, AlertCircle } from "lucide-react";
 import { cn } from "../lib/utils";
+import { API_BASE, getToken } from "../lib/api";
 
 interface Message {
   role: "user" | "assistant";
@@ -43,11 +44,11 @@ export default function AICopilot() {
 
     // Call AI backend
     try {
-      const response = await fetch("http://localhost:8000/ai/chat", {
+      const response = await fetch(`${API_BASE}/ai/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Authorization": `Bearer ${getToken()}`,
         },
         body: JSON.stringify({
           message: input,

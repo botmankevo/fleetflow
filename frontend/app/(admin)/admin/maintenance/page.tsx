@@ -22,6 +22,9 @@ type Maintenance = {
   cost: number;
   occurred_at?: string | null;
   receipt_link?: string | null;
+  scheduled_date?: string | null;
+  maintenance_type?: string | null;
+  status?: string | null;
 };
 
 export default function AdminMaintenancePage() {
@@ -198,7 +201,7 @@ export default function AdminMaintenancePage() {
                   </Button>
                 </div>
                 <MaintenanceCalendar 
-                  maintenanceItems={scheduledItems}
+                  maintenanceItems={scheduledItems as any}
                   onItemClick={(item) => {
                     // Could open a detail modal here
                     console.log('Clicked item:', item);

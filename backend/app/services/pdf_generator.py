@@ -11,6 +11,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from io import BytesIO
 from datetime import datetime
 from typing import Optional
+import os
 
 
 class PDFGenerator:
@@ -48,6 +49,15 @@ class PDFGenerator:
             textColor=colors.HexColor('#0abf53'),
             spaceAfter=6,
             spaceBefore=12
+        ))
+        
+        self.styles.add(ParagraphStyle(
+            name='PromotionText',
+            parent=self.styles['Normal'],
+            fontSize=8,
+            textColor=colors.grey,
+            alignment=TA_CENTER,
+            spaceBefore=20
         ))
     
     def generate_rate_confirmation(self, load_data: dict, carrier_info: dict) -> BytesIO:
@@ -375,6 +385,153 @@ class PDFGenerator:
         story.append(Spacer(1, 0.3*inch))
         footer_text = "Thank you for your business! | Main TMS - AI-Powered Transportation Management"
         story.append(Paragraph(footer_text, self.styles['Normal']))
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+    def generate_settlement_pdf(self, settlement_data: dict, carrier_info: dict, payee_info: dict) -> BytesIO:
+        """
+        Generate a Settlement PDF (Driver Pay Statement)
+        
+        Args:
+            settlement_data: Summary data including dates and totals
+            carrier_info: Dictionary with carrier company information
+            payee_info: Dictionary with payee/driver information
+        
+        Returns:
+            BytesIO buffer containing the PDF
+        """
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        story = []
+        
+        # Header with optional company logo
+        logo_url = carrier_info.get('logo_url')
+        header_data = []
+        
+        if logo_url and os.path.exists(logo_url):
+            try:
+                logo = Image(logo_url, width=1.2*inch, height=0.6*inch)
+                logo.hAlign = 'LEFT'
+                header_data.append([logo, [
+                    Paragraph(carrier_info.get('company_name', 'Main TMS'), self.styles['CompanyName']),
+                    Paragraph(f"{carrier_info.get('address', '')}", self.styles['Normal']),
+                    Paragraph(f"Phone: {carrier_info.get('phone', '')} | Email: {carrier_info.get('email', '')}", self.styles['Normal'])
+                ]])
+                header_table = Table(header_data, colWidths=[1.4*inch, 4.6*inch])
+                header_table.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP')]))
+                story.append(header_table)
+            except Exception:
+                story.append(Paragraph(carrier_info.get('company_name', 'Main TMS'), self.styles['CompanyName']))
+                story.append(Paragraph(f"{carrier_info.get('address', '')}", self.styles['Normal']),)
+                story.append(Paragraph(f"Phone: {carrier_info.get('phone', '')} | Email: {carrier_info.get('email', '')}", self.styles['Normal']))
+        else:
+            story.append(Paragraph(carrier_info.get('company_name', 'Main TMS'), self.styles['CompanyName']))
+            story.append(Paragraph(f"{carrier_info.get('address', '')}", self.styles['Normal']))
+            story.append(Paragraph(f"Phone: {carrier_info.get('phone', '')} | Email: {carrier_info.get('email', '')}", self.styles['Normal']))
+        
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Document title
+        story.append(Paragraph("SETTLEMENT STATEMENT", self.styles['DocumentTitle']))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Settlement Details Header
+        status_color = "#0abf53" if settlement_data.get('status') == 'paid' else "#f59e0b"
+        
+        details_data = [
+            ['Settlement ID:', f"#{settlement_data.get('id', 'N/A')}"],
+            ['Period:', f"{settlement_data.get('period_start', 'N/A')} to {settlement_data.get('period_end', 'N/A')}"],
+            ['Payee:', payee_info.get('name', 'N/A')],
+            ['Status:', settlement_data.get('status', 'draft').upper()],
+        ]
+        
+        details_table = Table(details_data, colWidths=[1.5*inch, 4.5*inch])
+        details_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8fafc')),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('TEXTCOLOR', (1, 3), (1, 3), colors.HexColor(status_color)),
+        ]))
+        story.append(details_table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Pay Items Table
+        story.append(Paragraph("Earnings and Adjustments", self.styles['SectionHeader']))
+        
+        items_data = [['Category', 'Description', 'Load #', 'Amount']]
+        
+        lines = settlement_data.get('lines', [])
+        for line in lines:
+            load_num = line.get('load_info', {}).get('load_number', '') if line.get('load_info') else ''
+            items_data.append([
+                line.get('category', '').replace('_', ' ').title(),
+                line.get('description', ''),
+                load_num,
+                f"${line.get('amount', 0):,.2f}"
+            ])
+            
+        items_table = Table(items_data, colWidths=[1.25*inch, 3*inch, 1*inch, 1.25*inch])
+        items_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0abf53')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        story.append(items_table)
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Financial Totals
+        total_amount = sum(float(l.get('amount', 0)) for l in lines)
+        
+        totals_data = [
+            ['Statement Total:', f"${total_amount:,.2f}"],
+        ]
+        
+        totals_table = Table(totals_data, colWidths=[5.25*inch, 1.25*inch])
+        totals_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            # ('LINEABOVE', (0, 0), (-1, 0), 1.5, colors.black),
+        ]))
+        story.append(totals_table)
+        
+        # Footer
+        story.append(Spacer(1, 0.5*inch))
+        
+        # MainTMS Promotion Section
+        maintms_logo_path = r"c:\Users\my self\.gemini\antigravity\scratch\MainTMS\frontend\public\logo.jpeg"
+        promo_data = []
+        if os.path.exists(maintms_logo_path):
+            try:
+                m_logo = Image(maintms_logo_path, width=0.8*inch, height=0.25*inch)
+                promo_data.append([m_logo, Paragraph("Standard of the Industry - Powered by MainTMS AI Platform", self.styles['PromotionText'])])
+                promo_table = Table(promo_data, colWidths=[1.0*inch, 5.0*inch])
+                promo_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
+                story.append(promo_table)
+            except Exception:
+                story.append(Paragraph("Powered by MainTMS AI Platform - Standard of the Industry", self.styles['PromotionText']))
+        else:
+            story.append(Paragraph("Powered by MainTMS AI Platform - Standard of the Industry", self.styles['PromotionText']))
+            
+        story.append(Spacer(1, 0.1*inch))
+        footer_text = f"Generated for {payee_info.get('name')} on {datetime.now().strftime('%m/%d/%Y %I:%M %p')}"
+        story.append(Paragraph(footer_text, self.styles['Normal']))
+        story.append(Paragraph("This is an official document of record for payroll and taxation purposes.", self.styles['Normal']))
         
         doc.build(story)
         buffer.seek(0)

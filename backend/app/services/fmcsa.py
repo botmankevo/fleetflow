@@ -158,7 +158,8 @@ class FMCSAService:
         def extract_field(pattern, html_text):
             match = re.search(pattern, html_text, re.DOTALL | re.IGNORECASE)
             if match:
-                result = match.group(1).strip()
+                val = match.group(1)
+                result = (val or "").strip()
                 # Clean HTML entities
                 result = result.replace('&nbsp;', '').replace('&#160;', '').strip()
                 return result if result else None

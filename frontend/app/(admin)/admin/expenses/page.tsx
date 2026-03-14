@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { apiFetch, API_BASE } from "@/lib/api";
 
 interface Expense {
     id: number;
@@ -18,6 +19,7 @@ interface Expense {
     approved_at: string | null;
     occurred_at: string | null;
     receipt_link: string | null;
+    expense_type?: string;
     created_at: string;
 }
 
@@ -40,6 +42,7 @@ export default function AdminExpensesPage() {
         vendor_id: "",
         amount: "",
         category: "fuel",
+        expense_type: "variable",
         description: "",
         occurred_at: new Date().toISOString().split('T')[0],
         receipt_link: "",
@@ -56,18 +59,13 @@ export default function AdminExpensesPage() {
 
     const loadData = async () => {
         try {
-            const token = localStorage.getItem("token");
-            const [expensesRes, vendorsRes] = await Promise.all([
-                fetch("http://localhost:8000/expenses/", {
-                    headers: { "Authorization": `Bearer ${token}` }
-                }),
-                fetch("http://localhost:8000/vendors/?is_active=true", {
-                    headers: { "Authorization": `Bearer ${token}` }
-                })
+            const [expensesData, vendorsData] = await Promise.all([
+                apiFetch("/expenses/"),
+                apiFetch("/vendors/?is_active=true")
             ]);
             
-            setExpenses(await expensesRes.json());
-            setVendors(await vendorsRes.json());
+            setExpenses(expensesData);
+            setVendors(vendorsData);
             setLoading(false);
         } catch (error) {
             console.error("Failed to load data:", error);
@@ -80,15 +78,11 @@ export default function AdminExpensesPage() {
         try {
             const token = localStorage.getItem("token");
             const url = editingExpense 
-                ? `http://localhost:8000/expenses/${editingExpense.id}`
-                : "http://localhost:8000/expenses/";
+                ? `/expenses/${editingExpense.id}`
+                : "/expenses/";
             
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: editingExpense ? "PUT" : "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({
                     ...formData,
                     vendor_id: formData.vendor_id ? parseInt(formData.vendor_id) : null,
@@ -96,12 +90,10 @@ export default function AdminExpensesPage() {
                 }),
             });
 
-            if (response.ok) {
-                loadData();
-                setShowModal(false);
-                setEditingExpense(null);
-                resetForm();
-            }
+            loadData();
+            setShowModal(false);
+            setEditingExpense(null);
+            resetForm();
         } catch (error) {
             console.error("Failed to save expense:", error);
         }
@@ -109,10 +101,8 @@ export default function AdminExpensesPage() {
 
     const approveExpense = async (id: number) => {
         try {
-            const token = localStorage.getItem("token");
-            await fetch(`http://localhost:8000/expenses/${id}?status=approved`, {
+            await apiFetch(`/expenses/${id}?status=approved`, {
                 method: "PUT",
-                headers: { "Authorization": `Bearer ${token}` }
             });
             loadData();
         } catch (error) {
@@ -123,10 +113,8 @@ export default function AdminExpensesPage() {
     const handleDelete = async (id: number) => {
         if (!confirm("Delete this expense?")) return;
         try {
-            const token = localStorage.getItem("token");
-            await fetch(`http://localhost:8000/expenses/${id}`, {
+            await apiFetch(`/expenses/${id}`, {
                 method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
             });
             loadData();
         } catch (error) {
@@ -139,6 +127,7 @@ export default function AdminExpensesPage() {
             vendor_id: "",
             amount: "",
             category: "fuel",
+            expense_type: "variable",
             description: "",
             occurred_at: new Date().toISOString().split('T')[0],
             receipt_link: "",
@@ -284,6 +273,13 @@ export default function AdminExpensesPage() {
                                     {categories.map(cat => (
                                         <option key={cat} value={cat}>{cat.replace('_', ' ').toUpperCase()}</option>
                                     ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Type *</label>
+                                <select value={formData.expense_type} onChange={(e) => setFormData({...formData, expense_type: e.target.value})} className="w-full border rounded-lg p-2" required>
+                                    <option value="variable">Variable (Per Load/Mile)</option>
+                                    <option value="fixed">Fixed (Monthly/Standing)</option>
                                 </select>
                             </div>
                             <div>

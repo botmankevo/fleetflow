@@ -20,40 +20,40 @@ interface StatsCardProps {
 
 const colorClasses = {
   blue: {
-    bg: 'bg-blue-50',
-    icon: 'bg-blue-500',
-    text: 'text-blue-700',
-    border: 'border-blue-200'
+    bg: 'bg-blue-500/10',
+    icon: 'bg-blue-600/20',
+    text: 'text-blue-400',
+    border: 'border-blue-500/20'
   },
   green: {
-    bg: 'bg-green-50',
-    icon: 'bg-green-500',
-    text: 'text-green-700',
-    border: 'border-green-200'
+    bg: 'bg-emerald-500/10',
+    icon: 'bg-emerald-600/20',
+    text: 'text-emerald-400',
+    border: 'border-emerald-500/20'
   },
   yellow: {
-    bg: 'bg-yellow-50',
-    icon: 'bg-yellow-500',
-    text: 'text-yellow-700',
-    border: 'border-yellow-200'
+    bg: 'bg-amber-500/10',
+    icon: 'bg-amber-600/20',
+    text: 'text-amber-400',
+    border: 'border-amber-500/20'
   },
   red: {
-    bg: 'bg-red-50',
-    icon: 'bg-red-500',
-    text: 'text-red-700',
-    border: 'border-red-200'
+    bg: 'bg-rose-500/10',
+    icon: 'bg-rose-600/20',
+    text: 'text-rose-400',
+    border: 'border-rose-500/20'
   },
   purple: {
-    bg: 'bg-purple-50',
-    icon: 'bg-purple-500',
-    text: 'text-purple-700',
-    border: 'border-purple-200'
+    bg: 'bg-purple-500/10',
+    icon: 'bg-purple-600/20',
+    text: 'text-purple-400',
+    border: 'border-purple-500/20'
   },
   indigo: {
-    bg: 'bg-indigo-50',
-    icon: 'bg-indigo-500',
-    text: 'text-indigo-700',
-    border: 'border-indigo-200'
+    bg: 'bg-indigo-500/10',
+    icon: 'bg-indigo-600/20',
+    text: 'text-indigo-400',
+    border: 'border-indigo-500/20'
   }
 };
 
@@ -88,11 +88,11 @@ export function StatsCard({
     
     switch (trend.direction) {
       case 'up':
-        return 'text-green-600 bg-green-50';
+        return 'text-emerald-400 bg-emerald-500/10';
       case 'down':
-        return 'text-red-600 bg-red-50';
+        return 'text-rose-400 bg-rose-500/10';
       default:
-        return 'text-gray-600 bg-gray-50';
+        return 'text-slate-400 bg-slate-500/10';
     }
   };
 
@@ -100,8 +100,8 @@ export function StatsCard({
     <div
       onClick={onClick}
       className={cn(
-        'relative overflow-hidden rounded-xl border bg-white dark:bg-gray-800 p-6 shadow-sm transition-all',
-        'hover:shadow-md dark:border-gray-700',
+        'relative overflow-hidden rounded-xl border bg-slate-900/40 backdrop-blur-sm p-6 shadow-sm transition-all',
+        'hover:shadow-md hover:bg-slate-900/60 dark:border-slate-800',
         onClick && 'cursor-pointer hover:scale-[1.02]',
         colors.border,
         className
@@ -109,28 +109,28 @@ export function StatsCard({
     >
       {loading ? (
         <div className="space-y-3 animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/2" />
-          <div className="h-8 bg-gray-200 rounded w-3/4" />
-          <div className="h-3 bg-gray-200 rounded w-1/3" />
+          <div className="h-4 bg-slate-800 rounded w-1/2" />
+          <div className="h-8 bg-slate-800 rounded w-3/4" />
+          <div className="h-3 bg-slate-800 rounded w-1/3" />
         </div>
       ) : (
         <>
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                 {title}
               </p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-white">
                 {value}
               </p>
             </div>
             
             {Icon && (
               <div className={cn(
-                'flex items-center justify-center w-12 h-12 rounded-lg',
+                'flex items-center justify-center w-12 h-12 rounded-xl transition-colors',
                 colors.icon
               )}>
-                <Icon className="h-6 w-6 text-white" />
+                <Icon className={cn('h-6 w-6', colors.text)} />
               </div>
             )}
           </div>
@@ -138,7 +138,7 @@ export function StatsCard({
           <div className="flex items-center justify-between">
             {trend && (
               <div className={cn(
-                'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
+                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold',
                 getTrendColor()
               )}>
                 {getTrendIcon()}
@@ -149,7 +149,7 @@ export function StatsCard({
             )}
             
             {description && !trend && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-slate-400 font-medium">
                 {description}
               </p>
             )}
@@ -157,8 +157,8 @@ export function StatsCard({
 
           {/* Background decoration */}
           <div className={cn(
-            'absolute -right-4 -bottom-4 w-24 h-24 rounded-full opacity-10',
-            colors.icon
+            'absolute -right-6 -bottom-6 w-24 h-24 rounded-full blur-3xl opacity-20 transition-opacity group-hover:opacity-30',
+            colors.bg
           )} />
         </>
       )}

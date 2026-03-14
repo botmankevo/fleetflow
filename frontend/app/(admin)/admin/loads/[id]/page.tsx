@@ -13,6 +13,8 @@ type Load = {
   delivery_address?: string | null;
   notes?: string | null;
   driver_id?: number | null;
+  customer_name?: string | null;
+  pickup_date?: string | null;
 };
 
 type DocumentExchange = {
